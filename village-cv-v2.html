@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>The Village of Abduz Zami</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --parchment:#f3ead2;
+    --parchment-dark:#e6d7ae;
+    --ink:#2b2115;
+    --ink-soft:#5a4a34;
+    --gold:#d4a24c;
+    --gold-bright:#f0c26b;
+    --burgundy:#7c3f52;
+    --slate:#3d5a80;
+    --panel-shadow: 0 10px 40px rgba(10,8,4,0.45);
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+    font-family:'Work Sans', sans-serif; color:var(--ink);
+    background:#0d1224;
+  }
+  #scene{position:fixed; inset:0; display:block; outline:none; touch-action:none;}
+
+  .mono{font-family:'JetBrains Mono', monospace; font-size:0.78em; letter-spacing:0.01em;}
+
+  /* ---------- Loading ---------- */
+  #loading{
+    position:fixed; inset:0; z-index:100; background:#0d1224;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    transition:opacity .8s ease;
+    color:var(--gold-bright); font-family:'Cinzel', serif;
+  }
+  #loading .lantern{
+    width:14px; height:14px; border-radius:50%; background:var(--gold-bright);
+    box-shadow:0 0 20px 6px rgba(240,194,107,0.7);
+    margin-bottom:22px;
+    animation: flicker 1.6s ease-in-out infinite;
+  }
+  @keyframes flicker{ 0%,100%{opacity:1; transform:scale(1);} 50%{opacity:0.6; transform:scale(0.85);} }
+  #loading p{ font-family:'Work Sans',sans-serif; color:#cbb98a; letter-spacing:0.08em; font-size:0.8rem; text-transform:uppercase;}
+
+  /* ---------- Intro ---------- */
+  #intro{
+    position:fixed; inset:0; z-index:90;
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+    text-align:center; padding:24px;
+    background: radial-gradient(ellipse at 50% 40%, rgba(30,26,58,0.35), rgba(9,11,25,0.75));
+    transition:opacity .9s ease, visibility .9s;
+  }
+  #intro.hidden{opacity:0; visibility:hidden; pointer-events:none;}
+  #intro h1{
+    font-family:'Cinzel', serif; font-weight:700; color:var(--gold-bright);
+    font-size:clamp(2rem, 6vw, 3.6rem); margin:0 0 10px; letter-spacing:0.02em;
+    text-shadow:0 4px 30px rgba(240,194,107,0.35);
+  }
+  #intro h2{
+    font-family:'Work Sans', sans-serif; font-weight:400; color:#d8cdb0;
+    font-size:clamp(0.9rem,2.4vw,1.15rem); margin:0 0 30px; letter-spacing:0.05em;
+    font-style:italic;
+  }
+  #intro p.desc{max-width:480px; color:#b7ab8c; font-size:0.92rem; line-height:1.6; margin:0 0 34px;}
+  #enterBtn{
+    font-family:'Cinzel', serif; font-size:1rem; letter-spacing:0.08em; text-transform:uppercase;
+    background:linear-gradient(180deg, var(--gold-bright), var(--gold));
+    color:#3a2a10; border:none; padding:15px 38px; border-radius:3px; cursor:pointer;
+    box-shadow:0 8px 24px rgba(212,162,76,0.35), inset 0 1px 0 rgba(255,255,255,0.4);
+    transition:transform .2s ease, box-shadow .2s ease;
+  }
+  #enterBtn:hover{ transform:translateY(-2px); box-shadow:0 12px 30px rgba(212,162,76,0.5); }
+  #enterBtn:active{ transform:translateY(0); }
+
+  /* ---------- Hint ---------- */
+  #hint{
+    position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
+    color:#e8dcc0; font-size:0.78rem; letter-spacing:0.04em;
+    background:rgba(20,16,10,0.4); padding:8px 16px; border-radius:20px;
+    backdrop-filter:blur(4px); z-index:20; transition:opacity 1.2s ease;
+    pointer-events:none; text-align:center; white-space:nowrap;
+  }
+  #hint.fade{opacity:0;}
+
+  /* ---------- Compass / legend ---------- */
+  #compass{
+    position:fixed; left:16px; top:16px; z-index:30;
+    background:rgba(30,24,16,0.55); border:1px solid rgba(212,162,76,0.35);
+    border-radius:10px; padding:12px 10px; backdrop-filter:blur(6px);
+    max-width:190px;
+  }
+  #compass .title{
+    font-family:'Cinzel', serif; color:var(--gold-bright); font-size:0.72rem;
+    text-transform:uppercase; letter-spacing:0.1em; margin-bottom:2px;
+  }
+  #compass .count{ color:#a99a78; font-size:0.68rem; margin-bottom:8px; }
+  .compassBtn{
+    display:flex; align-items:center; gap:8px; width:100%; text-align:left;
+    background:none; border:none; color:#e8dcc0; font-family:'Work Sans',sans-serif;
+    font-size:0.78rem; padding:6px 6px; border-radius:6px; cursor:pointer;
+    transition:background .15s ease, color .15s ease;
+  }
+  .compassBtn:hover{ background:rgba(212,162,76,0.18); }
+  .compassBtn .dot{
+    width:8px; height:8px; border-radius:50%; flex-shrink:0;
+    background:#6b5f45; box-shadow:none; transition:all .3s ease;
+  }
+  .compassBtn.visited .dot{ background:var(--gold-bright); box-shadow:0 0 8px 2px rgba(240,194,107,0.7); }
+  .compassBtn.visited{ color:var(--gold-bright); }
+  .compassBtn.active{ background:rgba(212,162,76,0.28); }
+
+  /* ---------- Info panel ---------- */
+  #panel{
+    position:fixed; top:0; right:0; height:100%; width:400px; max-width:92vw;
+    background:linear-gradient(180deg, var(--parchment), var(--parchment-dark));
+    box-shadow:var(--panel-shadow);
+    transform:translateX(100%); transition:transform .55s cubic-bezier(.25,.9,.3,1);
+    z-index:40; overflow-y:auto; padding:26px 28px 50px;
+    border-left:3px solid var(--gold);
+  }
+  #panel.open{ transform:translateX(0); }
+  #panel::-webkit-scrollbar{width:8px;}
+  #panel::-webkit-scrollbar-thumb{background:rgba(124,63,82,0.35); border-radius:4px;}
+  #closePanel{
+    position:absolute; top:16px; right:18px; background:none; border:none;
+    font-size:1.4rem; color:var(--ink-soft); cursor:pointer; line-height:1;
+    width:34px; height:34px; border-radius:50%; transition:background .15s;
+  }
+  #closePanel:hover{ background:rgba(124,63,82,0.12); }
+  #panel .eyebrow{
+    font-family:'JetBrains Mono', monospace; font-size:0.7rem; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--burgundy); margin:0 0 4px;
+  }
+  #panel h2{
+    font-family:'Cinzel', serif; font-size:1.5rem; margin:0 0 4px; color:var(--ink);
+    padding-right:20px;
+  }
+  #panel .tag{
+    font-style:italic; color:var(--ink-soft); font-size:0.9rem; margin:0 0 18px;
+  }
+  #panel .lead{ font-size:0.92rem; line-height:1.65; color:var(--ink); margin:0 0 18px; }
+  #panel .meta{ display:flex; flex-direction:column; gap:6px; margin-bottom:18px; font-size:0.85rem;}
+  #panel .meta a{ color:var(--burgundy); }
+  #panel .linkRow{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
+  #panel .linkRow a{
+    font-size:0.76rem; padding:5px 11px; border:1px solid var(--burgundy);
+    border-radius:14px; color:var(--burgundy); text-decoration:none;
+    transition:background .15s, color .15s;
+  }
+  #panel .linkRow a:hover{ background:var(--burgundy); color:#fff; }
+
+  #panel h3{
+    font-family:'Cinzel', serif; font-size:0.98rem; color:var(--burgundy);
+    margin:22px 0 10px; padding-bottom:6px; border-bottom:1px solid rgba(124,63,82,0.25);
+  }
+  #panel ul.plain{ list-style:none; margin:0 0 6px; padding:0; }
+  #panel ul.plain li{
+    font-size:0.86rem; line-height:1.5; margin-bottom:14px; padding-left:16px;
+    position:relative; color:var(--ink);
+  }
+  #panel ul.plain li::before{
+    content:'❧'; position:absolute; left:0; top:0; color:var(--gold); font-size:0.8rem;
+  }
+  #panel ul.plain li strong{ color:var(--ink); }
+  #panel ul.plain li .sub{ display:block; color:var(--ink-soft); font-size:0.8rem; margin-top:2px; }
+  #panel .chips{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 14px; }
+  #panel .chip{
+    background:rgba(124,63,82,0.1); color:var(--burgundy); font-size:0.74rem;
+    padding:4px 10px; border-radius:10px; font-family:'JetBrains Mono', monospace;
+  }
+  #panel .statRow{ display:flex; gap:22px; margin:6px 0 18px; flex-wrap:wrap; }
+  #panel .stat{ text-align:left; }
+  #panel .stat .num{ font-family:'Cinzel',serif; font-size:1.35rem; color:var(--burgundy); display:block; }
+  #panel .stat .lbl{ font-size:0.7rem; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.06em; }
+  #panel .note{ font-size:0.76rem; color:var(--ink-soft); font-style:italic; margin-top:10px; }
+
+  /* ---------- Floating building labels ---------- */
+  #labels{ position:fixed; inset:0; z-index:15; pointer-events:none; overflow:hidden; }
+  .buildingLabel{
+    position:absolute; left:0; top:0;
+    transform:translate(-50%,-100%);
+    background:rgba(243,234,210,0.92);
+    border:1px solid rgba(212,162,76,0.55);
+    color:var(--ink); font-family:'Cinzel', serif; font-size:0.72rem;
+    padding:5px 11px 6px; border-radius:4px; white-space:nowrap;
+    box-shadow:0 4px 16px rgba(10,8,4,0.35);
+    pointer-events:auto; cursor:pointer;
+    transition:opacity .25s ease, border-color .3s ease, background .2s ease;
+  }
+  .buildingLabel::after{
+    content:''; position:absolute; left:50%; bottom:-6px; transform:translateX(-50%);
+    border-left:6px solid transparent; border-right:6px solid transparent;
+    border-top:6px solid rgba(212,162,76,0.55);
+  }
+  .buildingLabel .icon{ margin-right:5px; }
+  .buildingLabel:hover{ background:#fff4dd; }
+  .buildingLabel.visited{ border-color:var(--gold-bright); box-shadow:0 4px 16px rgba(240,194,107,0.45); }
+  .buildingLabel.center{ font-size:0.8rem; padding:6px 13px 7px; }
+
+  @media (max-width: 720px){
+    .buildingLabel{ font-size:0.62rem; padding:4px 8px 5px; }
+    .buildingLabel.center{ font-size:0.7rem; }
+    #panel{
+      top:auto; bottom:0; left:0; right:0; width:100%; max-width:100%;
+      height:74vh; border-left:none; border-top:3px solid var(--gold);
+      transform:translateY(100%); border-radius:18px 18px 0 0;
+    }
+    #panel.open{ transform:translateY(0); }
+    #compass{ max-width:150px; padding:10px 8px; }
+    .compassBtn{ font-size:0.72rem; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="lantern"></div>
+  <p>Lighting the lanterns…</p>
+</div>
+
+<div id="intro" class="hidden">
+  <h1>The Village of Abduz Zami</h1>
+  <h2>Research Scholar — Computer Vision</h2>
+  <p class="desc">Somewhere between a lecture hall and a laboratory sits a small village. Every building holds a piece of the story — walk its paths, and let the lanterns light as you go.</p>
+  <button id="enterBtn">Enter the Village</button>
+</div>
+
+<canvas id="scene"></canvas>
+<div id="labels"></div>
+
+<div id="hint">drag to look around · scroll to zoom · click a building to step inside</div>
+
+<div id="compass">
+  <div class="title">Village Map</div>
+  <div class="count" id="compassCount">0 / 8 lanterns lit</div>
+  <div id="compassList"></div>
+</div>
+
+<div id="panel">
+  <button id="closePanel" aria-label="Close">×</button>
+  <div id="panelContent"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ============================================================
+   CONTENT — drawn directly from Abduz Zami's résumé
+   ============================================================ */
+const BUILDINGS = [
+  {
+    id:'townhall', name:'Town Hall', icon:'🏛️', angle:null, isCenter:true,
+    content:`
+      <div class="eyebrow">Village Center</div>
+      <h2>Abduz Zami</h2>
+      <p class="tag">Research Scholar: Computer Vision</p>
+      <p class="lead">A lecturer and researcher based in Dhaka, working at the intersection of lightweight deep learning and medical imaging — building compact, efficient models for colon polyp and chest X-ray segmentation, alongside a growing body of applied AI and software work.</p>
+      <div class="meta">
+        <span>📍 Tilpapara, Khilgaon, Dhaka - 1219, Bangladesh</span>
+        <span>✉️ <a href="mailto:abduz.zami@gmail.com">abduz.zami@gmail.com</a></span>
+        <span>📞 <a href="tel:+8801521704287">+880 1521 704 287</a></span>
+      </div>
+      <div class="linkRow">
+        <a href="https://linkedin.com/in/abduzzami" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://scholar.google.com/citations?user=zp0OIBMAAAAJ" target="_blank" rel="noopener">Google Scholar</a>
+      </div>
+      <p class="note">Step into any building around the square to explore education, experience, publications, projects, skills and more.</p>
+    `
+  },
+  {
+    id:'academy', name:'The Academy', icon:'🎓', angle:0, type:'tower',
+    content:`
+      <div class="eyebrow">Education</div>
+      <h2>The Academy</h2>
+      <p class="tag">Where the foundations were laid</p>
+      <ul class="plain">
+        <li><strong>Rajshahi University of Engineering &amp; Technology (RUET)</strong>
+          <span class="sub">B.Sc. in Computer Science &amp; Engineering — CGPA 3.71</span>
+          <span class="sub mono">2019 – 2025 · Rajshahi, Bangladesh</span></li>
+        <li><strong>Notre Dame College</strong>
+          <span class="sub">Higher Secondary Certificate — GPA 5.00</span>
+          <span class="sub mono">2017 – 2019 · Dhaka, Bangladesh</span></li>
+        <li><strong>Rani Bilasmoni Government Boys' High School</strong>
+          <span class="sub">Secondary School Certificate — GPA 5.00</span>
+          <span class="sub mono">2015 – 2017 · Gazipur, Bangladesh</span></li>
+      </ul>
+    `
+  },
+  {
+    id:'guildhall', name:'The Guild Hall', icon:'⚒️', angle:45, type:'hall',
+    content:`
+      <div class="eyebrow">Experience</div>
+      <h2>The Guild Hall</h2>
+      <p class="tag">Teaching, building, leading</p>
+      <ul class="plain">
+        <li><strong>Lecturer (Full-time)</strong> — Dept. of CSE, BGMEA University of Fashion &amp; Technology
+          <span class="sub mono">April 2026 – Present · Dhaka</span>
+          <span class="sub">Courses: Compiler Design, Operating Systems, Fundamentals of EEE, Fundamentals of CSE</span></li>
+        <li><strong>Lecturer (Contractual)</strong> — Dept. of Software Engineering, Daffodil International University
+          <span class="sub mono">Sept 2025 – April 2026 · Dhaka</span>
+          <span class="sub">Courses: OOP, Design Patterns, Research Methodology &amp; Scientific Writing, Computer Fundamentals (+Lab), Management Information System</span></li>
+        <li><strong>Founder &amp; CEO</strong> — Niharon Technologies <span class="mono">(closed)</span>
+          <span class="sub mono">2021 – 2023 · Dhaka</span>
+          <span class="sub">Founded a startup building tech-based educational and utility mobile apps; led a small team through product development and client delivery.</span></li>
+        <li><strong>Software Developer Intern</strong> — QubiTech
+          <span class="sub mono">2020 – 2021 · Rajshahi</span>
+          <span class="sub">Built mobile applications and supported backend systems across cross-platform environments.</span></li>
+      </ul>
+    `
+  },
+  {
+    id:'library', name:'The Library', icon:'📚', angle:90, type:'library',
+    content:`
+      <div class="eyebrow">Journal Publications</div>
+      <h2>The Library</h2>
+      <p class="tag">Peer-reviewed work, shelved by status</p>
+      <h3>Published — Biomedical Signal Processing &amp; Control (Q1)</h3>
+      <ul class="plain">
+        <li><strong>UltraLightCPS</strong> — An Ultra-Lightweight Colon Polyp Segmentation Model Using an Adaptive Compressed Multi-Scale Semantic Fusion Mechanism
+          <span class="sub">1st Author</span></li>
+        <li><strong>MedPrompt</strong> — LLM–CNN Fusion with Weight Routing for Medical Image Segmentation and Classification
+          <span class="sub">3rd Author</span></li>
+      </ul>
+      <h3>Under Processing</h3>
+      <ul class="plain">
+        <li><strong>LSCFNet</strong> — An Ultra-Lightweight Colon Polyp Segmentation Framework with Local-Context Feature Decoupling, Index-Guided Upsampling, and Implicit Edge Refinement
+          <span class="sub">2nd Author · Under review, Biomedical Signal Processing &amp; Control</span></li>
+        <li><strong>DeepColonLab</strong> — Attention Guided Separable Receptive Field Block Enhanced Deeplabv3+ Model for Colon Polyp Segmentation
+          <span class="sub">1st Author · Preprint available, under review at Engineering Applications of Artificial Intelligence</span></li>
+        <li><strong>Prompt2SegCXR</strong> — Prompt to Segment All Organs and Diseases in Chest X-rays
+          <span class="sub">1st Author · Preprint available, under revision at Heliyon</span></li>
+      </ul>
+    `
+  },
+  {
+    id:'scriptorium', name:'The Scriptorium', icon:'📜', angle:135, type:'library',
+    content:`
+      <div class="eyebrow">Conference Papers &amp; Scholarly Service</div>
+      <h2>The Scriptorium</h2>
+      <p class="tag">Where the shorter scrolls are kept</p>
+      <h3>Conference Publications</h3>
+      <ul class="plain">
+        <li><strong>TIG-UNet++</strong> — A Thresholded Input Guided Modified UNet++ for Separating Lung Region in Chest X-Rays <span class="sub">1st Author · ICTIS-2025, Thailand</span></li>
+        <li><strong>From Pixels to Diagnosis</strong> — Convolutional Neural Networks in Tuberculosis Screening <span class="sub">2nd Author · ICEEICT-2023</span></li>
+        <li><strong>Risk Minimization by Early Readmission Prediction for Diabetes Patients</strong> — A Data-Driven Machine Learning Approach <span class="sub">1st Author · BECITHCON-2024</span></li>
+        <li><strong>A Lightweight Framework for Facial Emotion Recognition</strong> — Leveraging Geometrical Priors with Spatial Features <span class="sub">1st Author · NCIM-2025</span></li>
+        <li><strong>A Multi-Stage Deep Learning Approach to Tuberculosis Detection with Explainable Insights</strong> <span class="sub">2nd Author · NCIM-2025</span></li>
+        <li><strong>Multimodal Deep Learning for Bangla Sign Language Recognition</strong> — Integrating Spatial and Geometric Features <span class="sub">3rd Author · NCIM-2025</span></li>
+        <li><strong>Skin Cancer Classification Using Pre-trained CNNs</strong> — A Transfer Learning Approach Addressing Imbalanced Data Challenges <span class="sub">4th Author · NCIM-2025</span></li>
+        <li><strong>Harnessing Ensemble Transfer Learning to Boost Human Activity Recognition in Static Images</strong> <span class="sub">2nd Author · STI-2025</span></li>
+        <li><strong>Deep Learning for Chest X-rays</strong> — Segmenting Thoracic Organs <span class="sub">4th Author · BECITHCON-2025</span></li>
+        <li><strong>An Attention Guided Lightweight U-Net Framework for Colon Polyp Segmentation in Colonoscopy Images</strong> <span class="sub">2nd Author · ICECTE-2026</span></li>
+        <li><strong>Bangla Dialect Classification Across 11 Regions</strong> — Using Machine Learning and Transformer-Based Models <span class="sub">6th Author · ICECTE-2026</span></li>
+      </ul>
+      <h3>Undergraduate Thesis</h3>
+      <ul class="plain">
+        <li><strong>SMFD-UNet</strong> — Semantic Mask Is The Only Thing You Need To Deblur Faces
+          <span class="sub">1st Author · Deblurring facial images using a semantic face mask to preserve structural similarity · Not yet published</span></li>
+      </ul>
+      <h3>Reviewer Activity</h3>
+      <div class="chips">
+        <span class="chip">Knowledge-Based Systems ×1</span>
+        <span class="chip">Biomedical Signal Processing &amp; Control ×3</span>
+        <span class="chip">MethodsX ×1</span>
+      </div>
+      <p class="note">All reviewing done for Elsevier, Inc.</p>
+    `
+  },
+  {
+    id:'workshop', name:'The Workshop', icon:'🔧', angle:180, type:'workshop',
+    content:`
+      <div class="eyebrow">Projects</div>
+      <h2>The Workshop</h2>
+      <p class="tag">Where things get built</p>
+      <h3>AI &amp; Deep Learning</h3>
+      <ul class="plain">
+        <li><strong>Brain Tumor 3D Segmentation</strong> — A pipeline for segmenting brain tumors from 3D MRI scans using a 3D-UNet in TensorFlow and Python. Grew out of a B.Sc. course.</li>
+      </ul>
+      <h3>Computer Architecture &amp; VLSI</h3>
+      <ul class="plain">
+        <li><strong>ALU Design (Logisim)</strong> — A 5-bit word-size CPU with a 16-bit instruction set: Add / OR / SHR operations, four general-purpose registers, 9-word RAM, and support for register, immediate, and control-transfer instructions (JMP, JG).</li>
+        <li><strong>ALU with FSM</strong> — Combinational ALU (XOR, ROL) plus an FSM circuit, written in Verilog and synthesized on the 130nm SkyWater PDK via the OpenLane toolchain.</li>
+      </ul>
+      <h3>Web &amp; Mobile</h3>
+      <ul class="plain">
+        <li><strong>English Moja</strong> — A Coursera/Udemy-style language-learning platform in Flutter with video lectures, quizzes, and an eBook store.</li>
+        <li><strong>Alumni Website</strong> — A full-stack RUET alumni site built with React, Node.js, and MySQL.</li>
+        <li><strong>OdolBodol</strong> — A Flutter + Firebase app connecting nearby users for book exchanges, delivery-fee-free.</li>
+        <li><strong>open_street_map_search_and_pick</strong> — A free Flutter plugin for location search and selection via OpenStreetMap.</li>
+        <li><strong>Desktop Manager</strong> — Windows software that tidies desktop folders by removing empty directories and sorting files by type.</li>
+        <li><strong>Al Quran Website</strong> — A site containing every surah with a listenable audio player.</li>
+      </ul>
+      <h3>Database Design &amp; Project Management</h3>
+      <ul class="plain">
+        <li><strong>JOSB Journal Website</strong> — Ophthalmic Society of Bangladesh; designed the database for submission, editorial, and blind-review workflows, and led a small team.</li>
+        <li><strong>BOCS Academy App</strong> — Database architecture for a secure e-learning platform preventing content capture.</li>
+        <li><strong>RGC Eye Hospital Website</strong> — Database architecture for a hospital information site.</li>
+        <li><strong>Miftah Shop Website</strong> — Database architecture for an e-commerce platform.</li>
+      </ul>
+    `
+  },
+  {
+    id:'market', name:'Market Square', icon:'🛒', angle:225, type:'market',
+    content:`
+      <div class="eyebrow">Skills &amp; Certifications</div>
+      <h2>Market Square</h2>
+      <p class="tag">Tools of the trade</p>
+      <h3>Programming Languages</h3>
+      <div class="chips"><span class="chip">Python</span><span class="chip">C</span><span class="chip">C++</span><span class="chip">Java</span><span class="chip">JavaScript</span><span class="chip">Dart</span></div>
+      <h3>ML / DL Tools</h3>
+      <div class="chips"><span class="chip">PyTorch</span><span class="chip">TensorFlow</span><span class="chip">Keras</span><span class="chip">OpenCV</span><span class="chip">Scikit-learn</span><span class="chip">NumPy</span><span class="chip">Pandas</span></div>
+      <h3>Web &amp; App Development</h3>
+      <div class="chips"><span class="chip">Flutter</span><span class="chip">Firebase</span><span class="chip">REST APIs</span><span class="chip">HTML/CSS</span><span class="chip">Node.js</span><span class="chip">ReactJS</span><span class="chip">Django</span><span class="chip">MySQL</span></div>
+      <h3>Tools</h3>
+      <div class="chips"><span class="chip">Git</span><span class="chip">Linux</span><span class="chip">LaTeX</span><span class="chip">Draw.io</span><span class="chip">Photoshop</span><span class="chip">Illustrator</span><span class="chip">Canva</span><span class="chip">MS Office</span><span class="chip">Google Workspace</span></div>
+      <h3>Certifications</h3>
+      <ul class="plain">
+        <li><strong>EDGE — Python (Django)</strong> — 80-hour training run by the CSE Dept. at RUET under the Enhancing Digital Government and Economy Project of Bangladesh Computer Council, ICT Division. <span class="sub mono">May 2024 – Feb 2025</span></li>
+        <li><strong>Deep Learning with PyTorch: Image Segmentation</strong> — Coursera course covering U-Net architecture, training loops, and evaluators. <span class="sub mono">Oct 13, 2023</span></li>
+      </ul>
+    `
+  },
+  {
+    id:'arena', name:'The Arena', icon:'🏟️', angle:270, type:'arena',
+    content:`
+      <div class="eyebrow">Competitive Programming &amp; Contacts</div>
+      <h2>The Arena</h2>
+      <p class="tag">Where problems are solved against the clock</p>
+      <div class="statRow">
+        <div class="stat"><span class="num mono">1228</span><span class="lbl">Codeforces max rating</span></div>
+        <div class="stat"><span class="num mono">200+</span><span class="lbl">Problems solved</span></div>
+        <div class="stat"><span class="num mono">50+</span><span class="lbl">Contests</span></div>
+      </div>
+      <p class="lead" style="margin-top:-10px">Handle: <span class="mono">abduzzami</span> on Codeforces, with 90+ problems solved on Aizu under the same handle.</p>
+      <h3>Links</h3>
+      <div class="linkRow">
+        <a href="https://scholar.google.com/citations?user=zp0OIBMAAAAJ" target="_blank" rel="noopener">Google Scholar</a>
+        <a href="https://linkedin.com/in/abduzzami" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://orcid.org/0009-0009-9679-0900" target="_blank" rel="noopener">Orcid</a>
+        <a href="https://kaggle.com/abduzzami" target="_blank" rel="noopener">Kaggle</a>
+        <a href="https://github.com/AbduzZami" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://codeforces.com/profile/abduzzami" target="_blank" rel="noopener">Codeforces</a>
+      </div>
+      <h3>References</h3>
+      <ul class="plain">
+        <li><strong>Mohiuddin Ahmed</strong><span class="sub">Assistant Professor, Dept. of CSE, RUET</span></li>
+        <li><strong>Md. Nasif Osman Khansur</strong><span class="sub">Lecturer, Dept. of CSE, RUET</span></li>
+        <li><strong>Md. Sozib Hossain</strong><span class="sub">Lecturer, Dept. of CSE, RUET</span></li>
+      </ul>
+      <p class="note">Contact details for references available on request.</p>
+    `
+  }
+];
+
+/* ============================================================
+   THREE.JS SCENE SETUP
+   ============================================================ */
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+
+// sky gradient background
+function makeSkyTexture(){
+  const c = document.createElement('canvas');
+  c.width = 2; c.height = 256;
+  const ctx = c.getContext('2d');
+  const g = ctx.createLinearGradient(0,0,0,256);
+  g.addColorStop(0, '#0b1230');
+  g.addColorStop(0.45, '#1c1f47');
+  g.addColorStop(0.72, '#4a3f6e');
+  g.addColorStop(1, '#e0925c');
+  ctx.fillStyle = g;
+  ctx.fillRect(0,0,2,256);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace || tex.colorSpace;
+  return tex;
+}
+scene.background = makeSkyTexture();
+scene.fog = new THREE.Fog(0x2c2a4a, 55, 130);
+
+const camera = new THREE.PerspectiveCamera(48, window.innerWidth/window.innerHeight, 0.1, 500);
+
+/* -------- lighting -------- */
+const hemi = new THREE.HemisphereLight(0x8a99c9, 0x2a2f22, 0.9);
+scene.add(hemi);
+const moon = new THREE.DirectionalLight(0xbcd0ff, 0.55);
+moon.position.set(-30, 40, -20);
+moon.castShadow = true;
+moon.shadow.mapSize.set(1024,1024);
+moon.shadow.camera.left = -55; moon.shadow.camera.right = 55;
+moon.shadow.camera.top = 55; moon.shadow.camera.bottom = -55;
+moon.shadow.camera.near = 1; moon.shadow.camera.far = 120;
+moon.shadow.bias = -0.0015;
+scene.add(moon);
+const ambient = new THREE.AmbientLight(0xffe9c9, 0.28);
+scene.add(ambient);
+
+/* -------- helpers -------- */
+function tag(obj, id){
+  obj.userData.buildingId = id;
+  obj.traverse ? obj.traverse(c=>{ c.userData.buildingId = id; if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } }) : null;
+}
+const rand = (a,b)=> a + Math.random()*(b-a);
+
+/* -------- ground -------- */
+const groundMat = new THREE.MeshStandardMaterial({ color:0x3f6b52, roughness:1 });
+const ground = new THREE.Mesh(new THREE.CircleGeometry(60, 64), groundMat);
+ground.rotation.x = -Math.PI/2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// mossy patches for texture variation
+for(let i=0;i<26;i++){
+  const r = rand(6,54), a = rand(0, Math.PI*2);
+  const patch = new THREE.Mesh(
+    new THREE.CircleGeometry(rand(2,5.5), 10),
+    new THREE.MeshStandardMaterial({ color: Math.random()>0.5?0x365d43:0x477a58, roughness:1 })
+  );
+  patch.rotation.x = -Math.PI/2;
+  patch.position.set(Math.sin(a)*r, 0.01, Math.cos(a)*r);
+  patch.receiveShadow = true;
+  scene.add(patch);
+}
+
+// low outer ring wall of shrubs
+for(let i=0;i<40;i++){
+  const a = (i/40)*Math.PI*2;
+  const bush = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(rand(0.6,1.1), 0),
+    new THREE.MeshStandardMaterial({ color:0x2d4d34, roughness:1 })
+  );
+  bush.position.set(Math.sin(a)*57, 0.5, Math.cos(a)*57);
+  bush.castShadow = true; bush.receiveShadow = true;
+  scene.add(bush);
+}
+
+/* -------- paths -------- */
+const pathMat = new THREE.MeshStandardMaterial({ color:0xc9a876, roughness:1 });
+const litPathMats = {};
+const R = 24;
+function addPath(angle){
+  const geo = new THREE.PlaneGeometry(3.2, R+3, 1, 12);
+  const mat = pathMat.clone();
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.rotation.x = -Math.PI/2;
+  mesh.position.set(Math.sin(angle)*(R/2), 0.02, Math.cos(angle)*(R/2));
+  mesh.rotation.z = -angle;
+  mesh.receiveShadow = true;
+  scene.add(mesh);
+  return mat;
+}
+
+/* -------- trees -------- */
+function createTree(x,z,scale=1){
+  const g = new THREE.Group();
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.14*scale,0.22*scale,1.3*scale,6),
+    new THREE.MeshStandardMaterial({ color:0x4a3626, roughness:1 })
+  );
+  trunk.position.y = 0.65*scale;
+  g.add(trunk);
+  const leafMat = new THREE.MeshStandardMaterial({ color: Math.random()>0.5?0x35603f:0x2d5236, roughness:0.95 });
+  for(let i=0;i<3;i++){
+    const leaf = new THREE.Mesh(new THREE.IcosahedronGeometry(0.85*scale - i*0.14*scale, 0), leafMat);
+    leaf.position.y = (1.3 + i*0.55)*scale;
+    g.add(leaf);
+  }
+  g.position.set(x,0,z);
+  g.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
+  scene.add(g);
+}
+
+function farEnoughFromBuildings(x,z, minDist){
+  if(Math.hypot(x,z) < 9) return false;
+  for(const b of BUILDINGS){
+    if(b.isCenter) continue;
+    const bx = Math.sin(b.angle*Math.PI/180)*R, bz = Math.cos(b.angle*Math.PI/180)*R;
+    if(Math.hypot(x-bx, z-bz) < minDist) return false;
+  }
+  return true;
+}
+let treesPlaced = 0, treeTries = 0;
+while(treesPlaced < 34 && treeTries < 400){
+  treeTries++;
+  const r = rand(9, 52), a = rand(0, Math.PI*2);
+  const x = Math.sin(a)*r, z = Math.cos(a)*r;
+  if(farEnoughFromBuildings(x,z,6)){
+    createTree(x,z, rand(0.8,1.5));
+    treesPlaced++;
+  }
+}
+
+/* -------- roof / structure builders -------- */
+function gableRoof(width, depth, height, color){
+  const shape = new THREE.Shape();
+  shape.moveTo(-width/2,0);
+  shape.lineTo(0,height);
+  shape.lineTo(width/2,0);
+  shape.lineTo(-width/2,0);
+  const geo = new THREE.ExtrudeGeometry(shape, { depth:depth, bevelEnabled:false });
+  geo.translate(0,0,-depth/2);
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness:0.75 }));
+  return mesh;
+}
+function pyramidRoof(size, height, color){
+  const geo = new THREE.ConeGeometry(size*0.78, height, 4);
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness:0.75 }));
+  mesh.rotation.y = Math.PI/4;
+  return mesh;
+}
+function tentRoof(radius, height, color){
+  const geo = new THREE.ConeGeometry(radius, height, 10);
+  return new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness:0.6 }));
+}
+function lanternMesh(){
+  const g = new THREE.Group();
+  const glass = new THREE.Mesh(
+    new THREE.SphereGeometry(0.18,8,8),
+    new THREE.MeshStandardMaterial({ color:0x3a2f1a, emissive:0x000000, emissiveIntensity:0, roughness:0.4 })
+  );
+  g.add(glass);
+  g.userData.glass = glass;
+  return g;
+}
+
+function wallMat(){ return new THREE.MeshStandardMaterial({ color:0xe8dcc0, roughness:0.9 }); }
+function doorMat(){ return new THREE.MeshStandardMaterial({ color:0x3f2c1e, roughness:0.9 }); }
+function windowMat(){ return new THREE.MeshStandardMaterial({ color:0x5b4321, emissive:0xffcf8a, emissiveIntensity:0.15, roughness:0.5 }); }
+
+function buildTownHall(){
+  const g = new THREE.Group();
+  const wallW=10, wallD=8, wallH=5.2;
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(wallW,wallH,wallD), wallMat());
+  walls.position.y = wallH/2;
+  g.add(walls);
+  const roof = gableRoof(wallW+1.2, wallD+1.2, 4, 0xc98a3e);
+  roof.position.y = wallH;
+  g.add(roof);
+  // columns
+  for(let i=-1;i<=1;i+=2){
+    for(let j=-1;j<=1;j+=2){
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.28,wallH*0.9,8), wallMat());
+      col.position.set(i*(wallW/2-0.6), wallH*0.45, j*(wallD/2-0.4));
+      g.add(col);
+    }
+  }
+  const door = new THREE.Mesh(new THREE.BoxGeometry(1.6,2.6,0.2), doorMat());
+  door.position.set(0, 1.3, -wallD/2-0.05);
+  g.add(door);
+  // spire flag
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,2.2,6), new THREE.MeshStandardMaterial({color:0x2a2a2a}));
+  pole.position.y = wallH+4+1.1;
+  g.add(pole);
+  const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.9,0.55), new THREE.MeshStandardMaterial({color:0xd4a24c, side:THREE.DoubleSide}));
+  flag.position.set(0.5, wallH+4+1.7, 0);
+  g.userData.flag = flag;
+  g.add(flag);
+  const lant = lanternMesh(); lant.position.set(0, 2.2, -wallD/2-0.6); g.add(lant);
+  g.userData.lantern = lant;
+  return g;
+}
+
+function buildTower(){ // academy
+  const g = new THREE.Group();
+  const w=4.6, d=4.6, h=8.4;
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), wallMat());
+  walls.position.y = h/2; g.add(walls);
+  const roof = pyramidRoof(w*1.15, 3.4, 0x3d5a80);
+  roof.position.y = h + 1.7; g.add(roof);
+  // bell
+  const bell = new THREE.Mesh(new THREE.SphereGeometry(0.45,8,6), new THREE.MeshStandardMaterial({color:0xd4a24c, metalness:0.4, roughness:0.5}));
+  bell.position.y = h + 0.6; g.add(bell);
+  for(const dx of [-1,1]) for(const dz of [-1,1]){
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(0.55,0.9), windowMat());
+    win.position.set(dx*(w/2-0.02), h*0.55, dz*(d/2-0.02));
+    win.rotation.y = dx===1? Math.PI/2 : -Math.PI/2;
+    if(dz!==0 && dx===0){}
+    g.add(win);
+  }
+  const door = new THREE.Mesh(new THREE.BoxGeometry(1.3,2.3,0.15), doorMat());
+  door.position.set(0,1.15,-d/2-0.04); g.add(door);
+  const lant = lanternMesh(); lant.position.set(0.9,2.0,-d/2-0.5); g.add(lant); g.userData.lantern = lant;
+  return g;
+}
+
+function buildHall(){ // guildhall
+  const g = new THREE.Group();
+  const w=7.4, d=5.6, h=4.6;
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), wallMat());
+  walls.position.y = h/2; g.add(walls);
+  const roof = gableRoof(w+0.8, d+0.8, 3, 0x7c3f52);
+  roof.position.y = h; g.add(roof);
+  for(const dx of [-2.1, 2.1]){
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(0.9,1.1), windowMat());
+    win.position.set(dx, h*0.55, -d/2-0.02); g.add(win);
+  }
+  const door = new THREE.Mesh(new THREE.BoxGeometry(1.5,2.4,0.15), doorMat());
+  door.position.set(0,1.2,-d/2-0.04); g.add(door);
+  const anvilBase = new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.4,0.4,8), new THREE.MeshStandardMaterial({color:0x333333}));
+  anvilBase.position.set(-3.4,0.2,-3.6); g.add(anvilBase);
+  const lant = lanternMesh(); lant.position.set(-1.1,1.9,-d/2-0.5); g.add(lant); g.userData.lantern = lant;
+  return g;
+}
+
+function buildLibrary(){
+  const g = new THREE.Group();
+  const w=7.2, d=5.4, h=4.8;
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), wallMat());
+  walls.position.y = h/2; g.add(walls);
+  const roof = gableRoof(w+0.8, d+0.8, 2.6, 0x3d5a80);
+  roof.position.y = h; g.add(roof);
+  for(let i=-2;i<=2;i++){
+    if(i===0) continue;
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,h*0.85,8), wallMat());
+    col.position.set(i*1.3, h*0.42, -d/2-0.5); g.add(col);
+  }
+  const door = new THREE.Mesh(new THREE.BoxGeometry(1.4,2.4,0.15), doorMat());
+  door.position.set(0,1.2,-d/2-0.05); g.add(door);
+  const lant = lanternMesh(); lant.position.set(1.6,2.0,-d/2-0.9); g.add(lant); g.userData.lantern = lant;
+  return g;
+}
+
+function buildWorkshop(){
+  const g = new THREE.Group();
+  const w=6.8, d=5.2, hLow=2.6, hHigh=4.4;
+  const shape = new THREE.Shape();
+  shape.moveTo(-w/2,0); shape.lineTo(-w/2,hHigh); shape.lineTo(w/2,hLow); shape.lineTo(w/2,0); shape.lineTo(-w/2,0);
+  const roofGeo = new THREE.ExtrudeGeometry(shape,{depth:0.3, bevelEnabled:false});
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(w,hLow+0.9,d), wallMat());
+  walls.position.y = (hLow+0.9)/2; g.add(walls);
+  const leanRoof = new THREE.Mesh(new THREE.BoxGeometry(w+0.6,0.25,d+0.6), new THREE.MeshStandardMaterial({color:0x4f6b47, roughness:0.8}));
+  leanRoof.position.set(0, hLow+1.0, 0);
+  leanRoof.rotation.x = -0.18;
+  g.add(leanRoof);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(1.6,2.1,0.15), doorMat());
+  door.position.set(-1.3,1.05,-d/2-0.05); g.add(door);
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(1.1,1.0), windowMat());
+  win.position.set(1.6, 1.6, -d/2-0.02); g.add(win);
+  // little gear prop
+  const gear = new THREE.Mesh(new THREE.TorusGeometry(0.5,0.13,6,10), new THREE.MeshStandardMaterial({color:0x8a8a8a, metalness:0.5, roughness:0.5}));
+  gear.position.set(2.8,0.6,-2.9); gear.rotation.x = Math.PI/2; g.userData.gear = gear;
+  g.add(gear);
+  const lant = lanternMesh(); lant.position.set(-2.4,1.9,-d/2-0.5); g.add(lant); g.userData.lantern = lant;
+  return g;
+}
+
+function buildMarket(){
+  const g = new THREE.Group();
+  const stallColors = [0x7c3f52, 0x3d5a80, 0xc98a3e];
+  for(let i=-1;i<=1;i++){
+    const stall = new THREE.Group();
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.8,1.3,1.6), wallMat());
+    base.position.y = 0.65; stall.add(base);
+    const tent = tentRoof(1.5, 1.3, stallColors[i+1]);
+    tent.position.y = 1.9; stall.add(tent);
+    stall.position.set(i*2.3, 0, i%2===0?0:-0.4);
+    g.add(stall);
+  }
+  const lant = lanternMesh(); lant.position.set(0,2.6,-1.6); g.add(lant); g.userData.lantern = lant;
+  return g;
+}
+
+function buildArena(){
+  const g = new THREE.Group();
+  const platform = new THREE.Mesh(new THREE.CylinderGeometry(3.2,3.4,0.4,16), wallMat());
+  platform.position.y = 0.2; g.add(platform);
+  const pillarCount = 10;
+  for(let i=0;i<pillarCount;i++){
+    const a = (i/pillarCount)*Math.PI*2;
+    const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,2.2,6), wallMat());
+    pillar.position.set(Math.sin(a)*3.6, 1.1, Math.cos(a)*3.6);
+    g.add(pillar);
+  }
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(3.6,0.08,6,20), new THREE.MeshStandardMaterial({color:0xd4a24c, metalness:0.3, roughness:0.5}));
+  ring.rotation.x = Math.PI/2; ring.position.y = 2.2; g.add(ring);
+  const lant = lanternMesh(); lant.position.set(0,2.7,-2.8); g.add(lant); g.userData.lantern = lant;
+  return g;
+}
+
+const BUILDER = { tower:buildTower, hall:buildHall, library:buildLibrary, workshop:buildWorkshop, market:buildMarket, arena:buildArena };
+
+const buildingMeshes = {}; // id -> group
+const lanterns = {};       // id -> lantern group
+const flags = [];
+const gears = [];
+
+BUILDINGS.forEach(b=>{
+  let group;
+  if(b.isCenter){
+    group = buildTownHall();
+    group.position.set(0,0,0);
+    flags.push(group.userData.flag);
+  } else {
+    const rad = b.angle * Math.PI/180;
+    addPath(rad);
+    group = BUILDER[b.type]();
+    group.position.set(Math.sin(rad)*R, 0, Math.cos(rad)*R);
+    group.rotation.y = rad + Math.PI;
+    if(group.userData.gear) gears.push(group.userData.gear);
+  }
+  tag(group, b.id);
+  buildingMeshes[b.id] = group;
+  lanterns[b.id] = group.userData.lantern;
+  scene.add(group);
+});
+
+/* -------- fireflies -------- */
+const fireflyCount = 90;
+const ffPositions = new Float32Array(fireflyCount*3);
+const ffPhase = new Float32Array(fireflyCount);
+for(let i=0;i<fireflyCount;i++){
+  const r = rand(4,50), a = rand(0,Math.PI*2);
+  ffPositions[i*3]   = Math.sin(a)*r;
+  ffPositions[i*3+1] = rand(0.6,3.2);
+  ffPositions[i*3+2] = Math.cos(a)*r;
+  ffPhase[i] = rand(0,Math.PI*2);
+}
+const ffGeo = new THREE.BufferGeometry();
+ffGeo.setAttribute('position', new THREE.BufferAttribute(ffPositions,3));
+const ffMat = new THREE.PointsMaterial({ color:0xffd98a, size:0.14, transparent:true, opacity:0.85, depthWrite:false });
+const fireflies = new THREE.Points(ffGeo, ffMat);
+scene.add(fireflies);
+
+/* -------- stars -------- */
+const starCount = 500;
+const starPos = new Float32Array(starCount*3);
+for(let i=0;i<starCount;i++){
+  const r = 160;
+  const theta = rand(0,Math.PI*2), phi = rand(0, Math.PI*0.42);
+  starPos[i*3] = r*Math.sin(phi)*Math.cos(theta);
+  starPos[i*3+1] = r*Math.cos(phi)+10;
+  starPos[i*3+2] = r*Math.sin(phi)*Math.sin(theta);
+}
+const starGeo = new THREE.BufferGeometry();
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPos,3));
+const starMat = new THREE.PointsMaterial({ color:0xffffff, size:0.6, transparent:true, opacity:0.75, depthWrite:false });
+scene.add(new THREE.Points(starGeo, starMat));
+
+/* ============================================================
+   FLOATING BUILDING LABELS
+   ============================================================ */
+const LABEL_HEIGHTS = {
+  townhall:10.0, academy:12.2, guildhall:8.0, library:7.8,
+  scriptorium:7.8, workshop:5.8, market:3.4, arena:3.0
+};
+const labelsContainer = document.getElementById('labels');
+const labelEls = {};
+BUILDINGS.forEach(b=>{
+  let x,z;
+  if(b.isCenter){ x=0; z=0; }
+  else { const rad = b.angle*Math.PI/180; x = Math.sin(rad)*R; z = Math.cos(rad)*R; }
+  const worldPos = new THREE.Vector3(x, LABEL_HEIGHTS[b.id] ?? 6, z);
+  const el = document.createElement('div');
+  el.className = 'buildingLabel' + (b.isCenter ? ' center' : '');
+  el.innerHTML = `<span class="icon">${b.icon}</span>${b.name}`;
+  el.addEventListener('click', ()=> selectBuilding(b.id));
+  labelsContainer.appendChild(el);
+  labelEls[b.id] = { el, worldPos };
+});
+
+function updateLabels(){
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const v = new THREE.Vector3();
+  Object.entries(labelEls).forEach(([id, entry])=>{
+    v.copy(entry.worldPos).project(camera);
+    const hideForSelection = (id === currentId && panel.classList.contains('open'));
+    if(v.z > 1 || hideForSelection){
+      entry.el.style.opacity = '0';
+      entry.el.style.pointerEvents = 'none';
+      return;
+    }
+    const x = (v.x*0.5+0.5)*vw;
+    const y = (-v.y*0.5+0.5)*vh;
+    entry.el.style.left = x+'px';
+    entry.el.style.top = y+'px';
+    entry.el.style.pointerEvents = 'auto';
+    const dist = camera.position.distanceTo(entry.worldPos);
+    const scale = Math.max(0.55, Math.min(1.15, 18/dist));
+    entry.el.style.transform = `translate(-50%,-100%) scale(${scale})`;
+    entry.el.style.opacity = String(Math.max(0.18, Math.min(1, (62-dist)/42)));
+    entry.el.classList.toggle('visited', visited.has(id));
+  });
+}
+
+/* ============================================================
+   CAMERA CONTROL (custom orbit + flight, no external deps)
+   ============================================================ */
+const cam = {
+  target: new THREE.Vector3(0, 5, 6),
+  azimuth: 0.5,
+  polar: 1.15,
+  radius: 50,
+};
+const minPolar = 0.55, maxPolar = 1.48;
+const minRadius = 8, maxRadius = 62;
+
+function applyCam(){
+  const x = cam.target.x + cam.radius*Math.sin(cam.polar)*Math.sin(cam.azimuth);
+  const y = cam.target.y + cam.radius*Math.cos(cam.polar);
+  const z = cam.target.z + cam.radius*Math.sin(cam.polar)*Math.cos(cam.azimuth);
+  camera.position.set(x,y,z);
+  camera.lookAt(cam.target);
+}
+applyCam();
+
+let flight = null;
+function wrapAngle(d){ while(d>Math.PI) d-=Math.PI*2; while(d<-Math.PI) d+=Math.PI*2; return d; }
+function easeInOutCubic(t){ return t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+
+function flyTo(targetVec, azimuth, polar, radius, duration=1300){
+  flight = {
+    fromTarget: cam.target.clone(), toTarget: targetVec.clone(),
+    fromAz: cam.azimuth, dAz: wrapAngle(azimuth - cam.azimuth),
+    fromPolar: cam.polar, toPolar: polar,
+    fromRadius: cam.radius, toRadius: radius,
+    start: performance.now(), duration
+  };
+}
+
+function overviewFlight(){
+  flyTo(new THREE.Vector3(0,5,6), 0.5, 1.15, 50, 1400);
+}
+
+/* -------- pointer interaction -------- */
+let dragging = false, dragMoved = false, lastX=0, lastY=0, userInteracted=false;
+const pointerDown = (x,y)=>{ dragging=true; dragMoved=false; lastX=x; lastY=y; };
+const pointerMove = (x,y)=>{
+  if(!dragging) return;
+  const dx = x-lastX, dy = y-lastY;
+  if(Math.abs(dx)+Math.abs(dy) > 3) dragMoved = true;
+  cam.azimuth -= dx*0.0055;
+  cam.polar = Math.min(maxPolar, Math.max(minPolar, cam.polar - dy*0.0045));
+  lastX=x; lastY=y;
+  flight = null;
+  userInteracted = true;
+  hideHint();
+};
+const pointerUp = ()=>{ dragging=false; };
+
+canvas.addEventListener('pointerdown', e=>{ canvas.setPointerCapture(e.pointerId); pointerDown(e.clientX,e.clientY); });
+canvas.addEventListener('pointermove', e=> pointerMove(e.clientX,e.clientY));
+canvas.addEventListener('pointerup', e=>{
+  pointerUp();
+  if(!dragMoved) handleClick(e.clientX, e.clientY);
+});
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault();
+  cam.radius = Math.min(maxRadius, Math.max(minRadius, cam.radius + e.deltaY*0.03));
+  flight = null; userInteracted = true; hideHint();
+}, { passive:false });
+
+const raycaster = new THREE.Raycaster();
+const mouseVec = new THREE.Vector2();
+function handleClick(clientX, clientY){
+  mouseVec.x = (clientX/window.innerWidth)*2-1;
+  mouseVec.y = -(clientY/window.innerHeight)*2+1;
+  raycaster.setFromCamera(mouseVec, camera);
+  const all = Object.values(buildingMeshes);
+  const meshes = [];
+  all.forEach(g=> g.traverse(c=>{ if(c.isMesh) meshes.push(c); }));
+  const hits = raycaster.intersectObjects(meshes, false);
+  if(hits.length){
+    const id = hits[0].object.userData.buildingId;
+    if(id) selectBuilding(id);
+  }
+}
+
+/* -------- selection / panel -------- */
+const panel = document.getElementById('panel');
+const panelContent = document.getElementById('panelContent');
+const closeBtn = document.getElementById('closePanel');
+const visited = new Set();
+let currentId = null;
+
+function updateCompassUI(){
+  document.querySelectorAll('.compassBtn').forEach(btn=>{
+    btn.classList.toggle('visited', visited.has(btn.dataset.id));
+    btn.classList.toggle('active', btn.dataset.id === currentId);
+  });
+  document.getElementById('compassCount').textContent = `${visited.size} / 8 lanterns lit`;
+}
+
+function lightLantern(id){
+  if(visited.has(id)) return;
+  visited.add(id);
+  const lant = lanterns[id];
+  if(lant && lant.userData.glass){
+    lant.userData.glass.material.emissive.set(0xffcf7a);
+    lant.userData.glass.material.emissiveIntensity = 1.4;
+    const pl = new THREE.PointLight(0xffb35c, 1.1, 8, 2);
+    pl.position.copy(lant.position);
+    buildingMeshes[id].add(pl);
+    lant.userData.pointLight = pl;
+  }
+  updateCompassUI();
+}
+
+function selectBuilding(id){
+  const meta = BUILDINGS.find(b=>b.id===id);
+  if(!meta) return;
+  currentId = id;
+  lightLantern(id);
+
+  let targetPos, az, polar, radius;
+  if(meta.isCenter){
+    targetPos = new THREE.Vector3(0, 3.6, 0);
+    az = 0.5; polar = 1.05; radius = 15;
+  } else {
+    const rad = meta.angle*Math.PI/180;
+    targetPos = new THREE.Vector3(Math.sin(rad)*R, 3.4, Math.cos(rad)*R);
+    az = rad; polar = 1.0; radius = 13;
+  }
+  flyTo(targetPos, az, polar, radius, 1300);
+  userInteracted = true;
+
+  panelContent.innerHTML = meta.content;
+  panel.classList.add('open');
+  updateCompassUI();
+  hideHint();
+}
+
+function deselect(){
+  currentId = null;
+  panel.classList.remove('open');
+  overviewFlight();
+  updateCompassUI();
+}
+closeBtn.addEventListener('click', deselect);
+
+/* -------- compass UI build -------- */
+const compassList = document.getElementById('compassList');
+BUILDINGS.forEach(b=>{
+  const btn = document.createElement('button');
+  btn.className = 'compassBtn';
+  btn.dataset.id = b.id;
+  btn.innerHTML = `<span class="dot"></span><span>${b.icon} ${b.name}</span>`;
+  btn.addEventListener('click', ()=> selectBuilding(b.id));
+  compassList.appendChild(btn);
+});
+
+/* -------- hint fade -------- */
+const hintEl = document.getElementById('hint');
+function hideHint(){ hintEl.classList.add('fade'); }
+setTimeout(hideHint, 7000);
+
+/* ============================================================
+   RESIZE
+   ============================================================ */
+function onResize(){
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+window.addEventListener('resize', onResize);
+onResize();
+
+/* ============================================================
+   ANIMATE
+   ============================================================ */
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  if(flight){
+    let p = (performance.now()-flight.start)/flight.duration;
+    if(p>=1){ p=1; flight=null; }
+    const e = easeInOutCubic(p);
+    cam.target.lerpVectors(flight.fromTarget, flight.toTarget, e);
+    cam.azimuth = flight.fromAz + flight.dAz*e;
+    cam.polar = flight.fromPolar + (flight.toPolar-flight.fromPolar)*e;
+    cam.radius = flight.fromRadius + (flight.toRadius-flight.fromRadius)*e;
+  } else if(!userInteracted){
+    cam.azimuth += 0.0009;
+  }
+  applyCam();
+  updateLabels();
+
+  // fireflies drift
+  const pos = ffGeo.attributes.position.array;
+  for(let i=0;i<fireflyCount;i++){
+    pos[i*3+1] += Math.sin(t*1.4 + ffPhase[i])*0.0025;
+  }
+  ffGeo.attributes.position.needsUpdate = true;
+  ffMat.opacity = 0.6 + Math.sin(t*2)*0.2;
+
+  // flags wave
+  flags.forEach(f=>{ if(f) f.rotation.y = Math.sin(t*2)*0.25; });
+  // gears spin
+  gears.forEach(g=>{ if(g) g.rotation.z += 0.01; });
+  // lantern flicker for lit ones
+  Object.values(lanterns).forEach(l=>{
+    if(l && l.userData.pointLight){
+      l.userData.pointLight.intensity = 0.9 + Math.sin(t*6 + l.position.x)*0.25;
+    }
+  });
+
+  renderer.render(scene, camera);
+}
+animate();
+
+/* ============================================================
+   INTRO / LOADING FLOW
+   ============================================================ */
+window.addEventListener('load', ()=>{
+  setTimeout(()=>{
+    document.getElementById('loading').style.opacity = '0';
+    setTimeout(()=> document.getElementById('loading').remove(), 850);
+    document.getElementById('intro').classList.remove('hidden');
+  }, 500);
+});
+document.getElementById('enterBtn').addEventListener('click', ()=>{
+  document.getElementById('intro').classList.add('hidden');
+});
+</script>
+</body>
+</html>
