@@ -243,7 +243,59 @@
     border-radius:4px; padding:1px 6px; font-family:'JetBrains Mono',monospace; font-size:0.72rem; margin-right:6px;
   }
 
+  /* ---------- War ---------- */
+  #attackBtn{
+    position:fixed; right:168px; bottom:44px; z-index:35; width:72px; height:72px; border-radius:50%;
+    font-size:1.8rem; background:rgba(124,30,30,0.75); border:2px solid rgba(240,194,107,0.8); color:#fff;
+    display:none; cursor:pointer; touch-action:none; box-shadow:0 6px 18px rgba(0,0,0,0.4);
+  }
+  #attackBtn:active{ transform:scale(0.93); }
+  body.war-mode #attackBtn{ display:block; }
+  #warHud{
+    position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:33; display:none; flex-direction:column; align-items:center; gap:6px;
+    background:rgba(30,12,10,0.7); border:1px solid rgba(240,120,90,0.6); border-radius:14px; padding:8px 18px;
+    color:#f6e6d0; font-family:'Cinzel', serif; font-size:0.85rem; backdrop-filter:blur(6px);
+  }
+  #warHud.show{ display:flex; }
+  #warHud .sides{ display:flex; gap:14px; align-items:center; white-space:nowrap; }
+  #warHud .def b{ color:#7fb6ff; } #warHud .inv b{ color:#ff8a7a; }
+  #warPlayer{ display:none; align-items:center; gap:10px; font-family:'JetBrains Mono', monospace; font-size:0.72rem; }
+  #warPlayer .hpbar{ width:150px; height:8px; background:rgba(0,0,0,0.5); border-radius:4px; overflow:hidden; border:1px solid rgba(255,255,255,0.25); }
+  #warHp{ height:100%; width:100%; background:linear-gradient(90deg,#d84a3a,#f0c26b); transition:width .2s; }
+  #warBanner{
+    position:fixed; top:22%; left:50%; transform:translate(-50%,-10px); z-index:34; pointer-events:none;
+    font-family:'Cinzel', serif; font-weight:700; font-size:clamp(1.1rem,3.4vw,2rem); color:#ffe2b0; text-align:center;
+    text-shadow:0 2px 0 #3a1008, 0 4px 24px rgba(255,90,40,0.6); opacity:0; transition:opacity .5s ease, transform .5s ease; padding:0 16px;
+  }
+  #warBanner.show{ opacity:1; transform:translate(-50%,0); }
+  #warFlash{ position:fixed; inset:0; z-index:31; pointer-events:none; box-shadow:inset 0 0 120px rgba(200,20,10,0.0); }
+  #warFlash.hit{ animation:hitflash .45s ease-out; }
+  @keyframes hitflash{ 0%{ box-shadow:inset 0 0 160px rgba(220,20,10,0.75);} 100%{ box-shadow:inset 0 0 160px rgba(220,20,10,0);} }
+  #warDialog{
+    position:fixed; inset:0; z-index:96; display:flex; align-items:center; justify-content:center; padding:20px;
+    background:rgba(12,6,4,0.55); opacity:0; visibility:hidden; transition:opacity .35s ease, visibility .35s;
+  }
+  #warDialog.show{ opacity:1; visibility:visible; }
+  #warDialog .card{
+    max-width:440px; width:100%; text-align:center; padding:26px 26px 22px; border-radius:14px;
+    background:linear-gradient(180deg, var(--parchment), var(--parchment-dark)); border:2px solid var(--gold);
+    box-shadow:0 20px 60px rgba(0,0,0,0.55); transform:translateY(10px); transition:transform .35s ease;
+  }
+  #warDialog.show .card{ transform:translateY(0); }
+  #warDialog .emblem{ font-size:2.6rem; margin-bottom:6px; }
+  #warDialog h3{ font-family:'Cinzel', serif; font-size:1.35rem; margin:0 0 10px; color:#7c1f1f; }
+  #warDialog p{ font-size:0.92rem; line-height:1.6; margin:0 0 18px; color:var(--ink); }
+  #warDialog .btns{ display:flex; flex-direction:column; gap:10px; }
+  #warDialog button{
+    font-family:'Cinzel', serif; font-size:0.9rem; padding:12px 16px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--burgundy); background:transparent; color:var(--burgundy); transition:transform .15s, background .15s;
+  }
+  #warDialog button.primary{ background:linear-gradient(180deg,#b23a2a,#7c1f1f); color:#fff4dc; border-color:#5a1010; box-shadow:0 6px 18px rgba(124,31,31,0.35); }
+  #warDialog button:hover{ transform:translateY(-1px); }
+
   @media (max-width: 720px){
+    #attackBtn{ right:136px; bottom:30px; width:64px; height:64px; }
+    #warHud{ top:auto; bottom:122px; font-size:0.72rem; padding:6px 12px; }
     #topRight{ right:12px; top:12px; gap:6px; flex-direction:column; align-items:flex-end; }
     .pill{ font-size:0.68rem; padding:8px 12px; }
     #joystick{ width:108px; height:108px; right:16px; bottom:20px; }
@@ -293,6 +345,15 @@
 <div id="enterPrompt"><kbd>E</kbd><span id="enterPromptLabel">Step inside</span></div>
 
 <div id="joystick"><div id="joystickKnob"></div></div>
+<button id="attackBtn" aria-label="Swing sword">⚔️</button>
+
+<div id="warFlash"></div>
+<div id="warBanner"></div>
+<div id="warHud">
+  <div class="sides"><span class="def">🛡️ Village <b id="warDef">0</b></span><span class="vs">⚔️</span><span class="inv"><b id="warInv">0</b> Outsiders ☠️</span></div>
+  <div id="warPlayer"><div class="hpbar"><div id="warHp"></div></div><span id="warKills">0 defeated</span></div>
+</div>
+<div id="warDialog"><div class="card"><div class="emblem">⚔️</div><h3></h3><p></p><div class="btns"></div></div></div>
 
 <div id="compass">
   <div class="title" id="compassTitle"><span>Village Map</span><span class="chevron">▾</span></div>
@@ -702,6 +763,8 @@ const PG = {
 };
 const SKIN = [0xd8a878,0xc68d5e,0xa8714a,0xe2b98f,0x8d5a3b];
 const legMatShared = new THREE.MeshStandardMaterial({ color:0x33302c, roughness:0.9 });
+const steelMatP = new THREE.MeshStandardMaterial({ color:0xc9ccd2, metalness:0.75, roughness:0.3 });
+const ironMatP = new THREE.MeshStandardMaterial({ color:0x3a3a3e, metalness:0.6, roughness:0.45 });
 const CLOCK_FACE_TEX = canvasTex(512,512,(ctx,s)=>{
   const c = s/2;
   ctx.fillStyle='#f6eedb'; ctx.fillRect(0,0,s,s);
@@ -2614,6 +2677,12 @@ function buildPerson(shirtColor, opts={}){
   const hat = opts.hat ?? pick(['hair','hair','straw','cap','scarf']);
   if(hat==='hair'){ const h = new THREE.Mesh(PG.hair, new THREE.MeshStandardMaterial({ color:pick([0x1f1712,0x3a2618,0x111111]), roughness:0.9 })); h.position.set(0,1.12,-0.01); h.rotation.x = -0.25; g.add(h); }
   else if(hat==='straw'){ const brim = cyl(0.28,0.28,0.03,14,M.hay); brim.position.y = 1.22; g.add(brim); const cr = cyl(0.13,0.15,0.12,12,M.hay); cr.position.y = 1.29; g.add(cr); }
+  else if(hat==='helmet' || hat==='horned'){
+    const h = new THREE.Mesh(PG.hair, hat==='helmet' ? steelMatP : ironMatP); h.scale.set(1.08,1.12,1.08); h.position.y = 1.12; g.add(h);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.165,0.02,6,16), hat==='helmet' ? steelMatP : ironMatP); rim.rotation.x = Math.PI/2; rim.position.y = 1.13; g.add(rim);
+    if(hat==='helmet'){ const crest = box(0.03,0.09,0.24,M.gold); crest.position.set(0,1.31,-0.02); g.add(crest); }
+    else for(const s of [-1,1]){ const horn = new THREE.Mesh(new THREE.ConeGeometry(0.035,0.2,6), M.cream); horn.position.set(s*0.16,1.27,0); horn.rotation.z = -s*0.7; g.add(horn); }
+  }
   else if(hat==='cap'){ const c = new THREE.Mesh(PG.hair, new THREE.MeshStandardMaterial({ color:pick([0x7c3f52,0x3d5a80,0x4f7a4a]) })); c.position.y = 1.13; g.add(c); const v = box(0.18,0.02,0.12,M.darkWood); v.position.set(0,1.18,0.17); g.add(v); }
   else { const sc = new THREE.Mesh(PG.hair, new THREE.MeshStandardMaterial({ color:pick([0xc98a3e,0x7c3f52,0x4f7a4a,0xd4a24c]) })); sc.scale.set(1.08,1.15,1.08); sc.position.set(0,1.1,-0.02); sc.rotation.x = -0.4; g.add(sc); }
   const armL = new THREE.Group(); armL.add(new THREE.Mesh(PG.arm, skinMat)); armL.position.set(-0.27,0.95,0); g.add(armL);
@@ -2897,6 +2966,446 @@ const bike = { x:0, z:-17.5, heading:Math.PI/2, speed:0 };
 bikeGroup.position.set(bike.x, 0, bike.z); bikeGroup.rotation.y = bike.heading;
 
 /* ============================================================
+   WAR — outsiders attack the village at 3:00 AM (visitor's own time zone)
+   ============================================================ */
+const WAR_TEST_NOW = true;          // developer switch: start a battle a few seconds after entering. Set to false for release.
+const WAR = { state:'idle', firedDay:null, units:[], fx:0, fxTarget:0, player:null, kills:0, joined:false,
+              introDone:false, reinforceT:0, reinforced:false, sparks:[], torches:[], hudT:0 };
+const INVADER_ANG = 42;
+const steelMat = new THREE.MeshStandardMaterial({ color:0xc9ccd2, metalness:0.75, roughness:0.3 });
+const ironMat = new THREE.MeshStandardMaterial({ color:0x3a3a3e, metalness:0.6, roughness:0.45 });
+const TEAM = {
+  village: { tunic:0x2f5a9a, shield:new THREE.MeshStandardMaterial({ color:0x2f5a9a, roughness:0.6 }), trim:M.gold, bar:0x5aa0ff, horse:0xe8e0d0 },
+  invader: { tunic:0x6a1a1a, shield:new THREE.MeshStandardMaterial({ color:0x3a1414, roughness:0.7 }), trim:ironMat, bar:0xff5a4a, horse:0x2a1d16 }
+};
+const HORSE_SEAT = 1.08;
+
+function buildHorse(color, blanket){
+  const g = dyn(new THREE.Group());
+  const coat = new THREE.MeshStandardMaterial({ color, roughness:0.85 });
+  const dark = new THREE.MeshStandardMaterial({ color:0x1a1410, roughness:0.9 });
+  const body = box(0.5,0.56,1.35,coat); body.position.y = 1.25; g.add(body);
+  const chest = box(0.46,0.5,0.3,coat); chest.position.set(0,1.3,0.72); g.add(chest);
+  const rump = box(0.48,0.5,0.32,coat); rump.position.set(0,1.28,-0.66); g.add(rump);
+  const neck = box(0.26,0.74,0.3,coat); neck.position.set(0,1.72,0.78); neck.rotation.x = 0.55; g.add(neck);
+  const head = box(0.24,0.26,0.6,coat); head.position.set(0,2.0,1.12); head.rotation.x = 0.35; g.add(head);
+  const muzzle = box(0.2,0.2,0.2,dark); muzzle.position.set(0,1.9,1.38); muzzle.rotation.x = 0.35; g.add(muzzle);
+  for(const s of [-1,1]){
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.04,0.13,4), coat); ear.position.set(s*0.07,2.2,0.92); g.add(ear);
+    const eye = new THREE.Mesh(PG.eye, M.black); eye.position.set(s*0.125,2.04,1.12); g.add(eye);
+  }
+  const mane = box(0.07,0.6,0.14,dark); mane.position.set(0,1.86,0.66); mane.rotation.x = 0.55; g.add(mane);
+  const tail = new THREE.Group(); tail.position.set(0,1.45,-0.82); tail.rotation.x = 0.45;
+  const tm = box(0.09,0.7,0.09,dark); tm.position.y = -0.35; tail.add(tm); g.add(tail);
+  const legGeo = new THREE.CylinderGeometry(0.065,0.05,0.98,6); legGeo.translate(0,-0.49,0);
+  const legs = [[-0.17,0.52],[0.17,0.52],[-0.17,-0.52],[0.17,-0.52]].map(([x,z])=>{
+    const l = new THREE.Group(); l.position.set(x,1.02,z);
+    l.add(new THREE.Mesh(legGeo, coat));
+    const hoof = box(0.12,0.08,0.14,dark); hoof.position.y = -0.98; l.add(hoof);
+    g.add(l); return l;
+  });
+  const blanketM = box(0.62,0.03,0.7,new THREE.MeshStandardMaterial({ color:blanket, roughness:0.8 })); blanketM.position.set(0,1.54,-0.05); g.add(blanketM);
+  const saddle = box(0.42,0.1,0.48,new THREE.MeshStandardMaterial({ color:0x5a3a20, roughness:0.7 })); saddle.position.set(0,1.6,-0.05); g.add(saddle);
+  g.traverse(c=>{ if(c.isMesh){ c.castShadow = true; c.receiveShadow = true; } });
+  return { group:g, legs, tail };
+}
+
+function equipSoldier(p, team, torch){
+  const T = TEAM[team];
+  const blade = box(0.035,0.02,0.64,steelMat); blade.position.set(0,-0.43,0.35); p.armR.add(blade);
+  const guard = box(0.17,0.035,0.035,T.trim); guard.position.set(0,-0.43,0.03); p.armR.add(guard);
+  if(torch){
+    const stick = cyl(0.025,0.03,0.55,6,M.darkWood); stick.position.set(0,-0.4,0.12); stick.rotation.x = Math.PI/2.4; p.armL.add(stick);
+    const f = makeFlame(p.armL, 0, -0.3, 0.38, 0.9); WAR.torches.push(f);
+  } else {
+    const shield = cyl(0.23,0.23,0.05,14,T.shield); shield.rotation.x = Math.PI/2; shield.position.set(0,-0.3,0.13); p.armL.add(shield);
+    const bossM = new THREE.Mesh(new THREE.SphereGeometry(0.06,8,6), T.trim); bossM.position.set(0,-0.3,0.17); p.armL.add(bossM);
+  }
+  p.armL.rotation.x = -0.7;
+  p.group.traverse(c=>{ if(c.isMesh){ c.castShadow = true; } });
+}
+
+function makeHpBar(team){
+  const bg = new THREE.Sprite(new THREE.SpriteMaterial({ color:0x111111, transparent:true, opacity:0.7, depthWrite:false }));
+  const fill = new THREE.Sprite(new THREE.SpriteMaterial({ color:TEAM[team].bar, depthWrite:false }));
+  bg.scale.set(0.82,0.09,1); fill.scale.set(0.78,0.06,1); fill.renderOrder = 2; bg.renderOrder = 1;
+  scene.add(bg, fill); return { bg, fill };
+}
+
+function spawnUnit(team, x, z, mounted, faceYaw, opts={}){
+  const T = TEAM[team];
+  const p = buildPerson(T.tunic, { hat: team==='village' ? 'helmet' : 'horned' });
+  equipSoldier(p, team, opts.torch);
+  let horse = null, root = p.group;
+  if(mounted){
+    horse = buildHorse(T.horse, team==='village' ? 0x2f5a9a : 0x6a1a1a);
+    p.group.position.set(0, HORSE_SEAT, -0.05);
+    p.legL.rotation.set(-1.25,0,-0.35); p.legR.rotation.set(-1.25,0,0.35);
+    horse.group.add(p.group); root = horse.group;
+  }
+  root.position.set(x, 0, z); root.rotation.y = faceYaw;
+  scene.add(root);
+  const stats = mounted ? { hp:200, dmg:20, speed:3.3, reach:1.5, radius:0.7 }
+                        : (team==='village' ? { hp:104, dmg:14.5, speed:2.3, reach:0.95, radius:0.35 } : { hp:95, dmg:13, speed:2.1, reach:0.95, radius:0.35 });
+  const u = { team, p, horse, root, mounted, ...stats, maxHp:stats.hp, cd:rand(0.2,1.2), swing:0, hit:false,
+              target:null, retarget:0, dead:false, deadT:0, phase:rand(0,6), bar:makeHpBar(team), vx:0, vz:0 };
+  WAR.units.push(u); return u;
+}
+
+function nearestFoe(u){
+  let best = null, bd = Infinity; const px = u.root.position.x, pz = u.root.position.z;
+  for(const o of WAR.units){ if(o.dead || o.team===u.team) continue; const d = (o.root.position.x-px)**2 + (o.root.position.z-pz)**2; if(d < bd){ bd = d; best = o; } }
+  const pl = WAR.player;
+  if(u.team==='invader' && pl && !pl.dead){ const d = (pl.root.position.x-px)**2 + (pl.root.position.z-pz)**2; if(d*0.85 < bd){ best = pl; } }
+  return best;
+}
+
+function hitSpark(x,y,z,color=0xfff1b0){
+  const N = 10, pos = new Float32Array(N*3), vel = [];
+  for(let i=0;i<N;i++){ pos[i*3]=x; pos[i*3+1]=y; pos[i*3+2]=z; vel.push([rand(-2,2), rand(0.5,3), rand(-2,2)]); }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color, size:0.12, transparent:true, opacity:1, depthWrite:false, blending:THREE.AdditiveBlending }));
+  scene.add(pts); WAR.sparks.push({ pts, geo, pos, vel, life:0 });
+}
+function updateSparks2(dt){
+  for(let i=WAR.sparks.length-1;i>=0;i--){
+    const s = WAR.sparks[i]; s.life += dt;
+    for(let k=0;k<s.vel.length;k++){ s.vel[k][1] -= 9.8*dt; s.pos[k*3]+=s.vel[k][0]*dt; s.pos[k*3+1]+=s.vel[k][1]*dt; s.pos[k*3+2]+=s.vel[k][2]*dt; }
+    s.geo.attributes.position.needsUpdate = true; s.pts.material.opacity = 1 - s.life/0.5;
+    if(s.life > 0.5){ scene.remove(s.pts); s.geo.dispose(); s.pts.material.dispose(); WAR.sparks.splice(i,1); }
+  }
+}
+
+function damage(target, amount, attacker){
+  if(target.dead) return;
+  target.hp -= amount;
+  const tp = target.root.position;
+  hitSpark(tp.x, tp.y + (target.mounted?2.1:1.0), tp.z);
+  if(camera.position.distanceTo(tp) < 30) playClash(target.isPlayer || (attacker && attacker.isPlayer) ? 0.3 : 0.12);
+  if(attacker){ const dx = tp.x-attacker.root.position.x, dz = tp.z-attacker.root.position.z, d = Math.hypot(dx,dz)||1; const kb = attacker.isPlayer ? 0.9 : 0.25; tp.x += dx/d*kb; tp.z += dz/d*kb; }
+  if(target.isPlayer){ flashDamage(); }
+  if(target.hp <= 0){ target.hp = 0; killUnit(target, attacker); }
+}
+function killUnit(u, attacker){
+  u.dead = true; u.deadT = 0; u.fallAxis = Math.random() < 0.5 ? 'x' : 'z'; u.fallDir = Math.random() < 0.5 ? -1 : 1;
+  if(u.bar){ u.bar.bg.visible = false; u.bar.fill.visible = false; }
+  if(attacker && attacker.isPlayer) WAR.kills++;
+  if(u.isPlayer){ playerDown(); }
+}
+
+function swingArm(p, k){
+  p.armR.rotation.x = k < 0.4 ? -0.5 + (-2.7+0.5)*(k/0.4) : -2.7 + (2.5)*((k-0.4)/0.6);
+  p.armR.rotation.z = k < 0.4 ? 0 : -0.5*Math.sin((k-0.4)/0.6*Math.PI);
+}
+
+function animateMount(u, sp, dt){
+  u.phase += dt*(u.mounted ? sp*1.7 : sp*3.4);
+  const s = Math.sin(u.phase);
+  if(u.mounted){
+    const L = u.horse.legs;
+    L[0].rotation.x = s*0.7*Math.min(1,sp/2); L[1].rotation.x = Math.sin(u.phase+0.7)*0.7*Math.min(1,sp/2);
+    L[2].rotation.x = Math.sin(u.phase+Math.PI)*0.7*Math.min(1,sp/2); L[3].rotation.x = Math.sin(u.phase+Math.PI+0.7)*0.7*Math.min(1,sp/2);
+    u.horse.tail.rotation.x = 0.45 + Math.sin(u.phase*0.5)*0.15*Math.min(1,sp);
+    u.p.group.position.y = HORSE_SEAT + Math.abs(Math.sin(u.phase))*0.06*Math.min(1,sp/2);
+  } else {
+    u.p.legL.rotation.x = s*0.6*Math.min(1,sp); u.p.legR.rotation.x = -s*0.6*Math.min(1,sp);
+  }
+}
+
+function updateUnits(dt, t){
+  const units = WAR.units; let def = 0, inv = 0;
+  for(let i=units.length-1;i>=0;i--){
+    const u = units[i];
+    if(!u.dead){ if(u.team==='village') def++; else inv++; continue; }
+    u.deadT += dt;
+    const k = Math.min(1, u.deadT/0.5);
+    if(u.fallAxis==='x') u.root.rotation.x = u.fallDir*k*Math.PI/2*(u.mounted?0.95:1); else u.root.rotation.z = u.fallDir*k*Math.PI/2*(u.mounted?0.95:1);
+    if(u.deadT > 6) u.root.position.y -= dt*0.35;
+    if(u.deadT > 9){ removeUnit(u); units.splice(i,1); }
+  }
+  WAR.counts = { def, inv };
+  for(const u of units){
+    if(u.dead) continue;
+    u.cd -= dt; u.retarget -= dt;
+    const pos = u.root.position;
+    if(u.retarget <= 0 || !u.target || u.target.dead){ u.target = nearestFoe(u); u.retarget = rand(0.4,0.8); }
+    const tg = u.target;
+    if(!tg){
+      // victory cheer
+      u.p.armR.rotation.x = -2.6 + Math.sin(t*6+u.phase)*0.3; animateMount(u, 0, dt);
+    } else {
+      const tp = tg.root.position, dx = tp.x-pos.x, dz = tp.z-pos.z, d = Math.hypot(dx,dz) || 0.001;
+      const reach = u.reach + (tg.radius||0.35);
+      u.root.rotation.y += wrapAngle(Math.atan2(dx,dz) - u.root.rotation.y)*Math.min(1, dt*6);
+      if(d > reach){
+        const sp = (WAR.state==='active' ? u.speed : 0);
+        pos.x += dx/d*sp*dt; pos.z += dz/d*sp*dt; animateMount(u, sp, dt);
+      } else {
+        animateMount(u, 0.0001, dt);
+        if(u.cd <= 0 && u.swing <= 0 && WAR.state==='active'){ u.swing = 0.0001; u.hit = false; u.cd = rand(0.9,1.5); }
+      }
+      if(u.swing > 0){
+        u.swing += dt; const k = u.swing/0.5; swingArm(u.p, Math.min(1,k));
+        if(!u.hit && k > 0.55){ u.hit = true; if(!tg.dead && d < reach+0.4) damage(tg, u.dmg*rand(0.8,1.2), u); }
+        if(k >= 1){ u.swing = 0; u.p.armR.rotation.set(-0.5,0,0); }
+      } else { u.p.armR.rotation.x += (-0.5 - u.p.armR.rotation.x)*Math.min(1,dt*6); }
+    }
+    // keep apart from neighbours
+    for(const o of units){
+      if(o===u || o.dead) continue;
+      const ox = pos.x-o.root.position.x, oz = pos.z-o.root.position.z, min = (u.radius+o.radius)*(o.team===u.team ? 1.6 : 1.15), d2 = ox*ox+oz*oz;
+      if(d2 < min*min && d2 > 1e-6){ const d = Math.sqrt(d2), push = (min-d)*0.5; pos.x += ox/d*push; pos.z += oz/d*push; }
+    }
+    const tmp = { x:pos.x, z:pos.z }; if(resolveCollisions(tmp, u.radius, false)){ pos.x = tmp.x; pos.z = tmp.z; }
+    pos.y = groundHeight(pos.x, pos.z);
+    // health bar
+    const f = Math.max(0.001, u.hp/u.maxHp), top = pos.y + (u.mounted ? 2.75 : 1.55);
+    u.bar.bg.position.set(pos.x, top, pos.z); u.bar.fill.position.set(pos.x, top, pos.z);
+    u.bar.fill.scale.x = 0.78*f; u.bar.fill.center.set(0.5/f, 0.5);
+  }
+  // reinforcements from the Guild Hall
+  if(WAR.state==='active' && !WAR.reinforced){
+    WAR.reinforceT += dt;
+    if(WAR.reinforceT > 20){
+      WAR.reinforced = true;
+      const gh = buildingWorldPos.guildhall;
+      for(let i=0;i<6;i++) spawnUnit('village', gh.x*0.7 + rand(-2,2), gh.y*0.7 + rand(-2,2), false, INVADER_ANG*D2R);
+      showWarBanner('🛡️ Reinforcements from the Guild Hall!');
+    }
+  }
+  // outcome
+  if(WAR.state==='active'){
+    const pl = WAR.player, playerAlive = pl && !pl.dead;
+    if(inv === 0) endWar(true);
+    else if(def === 0 && !playerAlive) endWar(false);
+  }
+}
+
+function removeUnit(u){
+  scene.remove(u.root);
+  if(u.bar){ scene.remove(u.bar.bg, u.bar.fill); u.bar.bg.material.dispose(); u.bar.fill.material.dispose(); }
+  u.root.traverse(c=>{ const i = flames.findIndex(f=>f.mesh===c); if(i>=0) flames.splice(i,1); });
+}
+
+/* -------- the player: a rider with a sword -------- */
+function spawnPlayer(){
+  const p = buildPerson(0x2f5a9a, { hat:'helmet', skin:0xc68d5e });
+  equipSoldier(p, 'village', false);
+  const crest = box(0.04,0.14,0.32,M.gold); crest.position.set(0,1.32,0); p.group.add(crest);
+  const cape = new THREE.Mesh(new THREE.PlaneGeometry(0.48,0.75), new THREE.MeshStandardMaterial({ color:0xb02a2a, side:THREE.DoubleSide, roughness:0.8 }));
+  cape.position.set(0,0.62,-0.24); cape.rotation.x = 0.25; p.group.add(cape);
+  const horse = buildHorse(0xf2ede4, 0xb02a2a);
+  p.group.position.set(0, HORSE_SEAT, -0.05);
+  p.legL.rotation.set(-1.25,0,-0.35); p.legR.rotation.set(-1.25,0,0.35);
+  horse.group.add(p.group);
+  const start = polar(INVADER_ANG-12, 14.5);
+  horse.group.position.set(start.x, 0, start.z);
+  const heading = INVADER_ANG*D2R;
+  horse.group.rotation.y = heading;
+  scene.add(horse.group);
+  WAR.player = { isPlayer:true, team:'village', p, horse, root:horse.group, mounted:true, hp:260, maxHp:260, radius:0.7,
+                 heading, speed:0, swing:0, cd:0, phase:0, dead:false, deadT:0 };
+}
+function playerAttack(){
+  const pl = WAR.player; if(!pl || pl.dead || pl.swing > 0 || pl.cd > 0) return;
+  pl.swing = 0.0001; pl.cd = 0.5; pl.hitDone = false; playWhoosh();
+}
+const HORSE_MAX = 10, HORSE_ACCEL = 12, HORSE_TURN = 2.3;
+function updatePlayer(dt, passive){
+  const pl = WAR.player; if(!pl) return;
+  if(pl.dead){
+    pl.deadT += dt; const k = Math.min(1, pl.deadT/0.6);
+    pl.root.rotation.z = k*Math.PI/2*0.95;
+    return;
+  }
+  if(passive){ animateMount(pl, 0, dt); return; }
+  let forward = 0, turn = 0;
+  if(keysDown['w']||keysDown['W']||keysDown['ArrowUp']) forward += 1;
+  if(keysDown['s']||keysDown['S']||keysDown['ArrowDown']) forward -= 1;
+  if(keysDown['a']||keysDown['A']||keysDown['ArrowLeft']) turn += 1;
+  if(keysDown['d']||keysDown['D']||keysDown['ArrowRight']) turn -= 1;
+  forward = Math.max(-1, Math.min(1, forward + joystick.forward));
+  turn = Math.max(-1, Math.min(1, turn + joystick.turn));
+  if(forward !== 0) pl.speed += forward*HORSE_ACCEL*dt;
+  else { const decay = 8*dt; pl.speed = Math.abs(pl.speed) <= decay ? 0 : pl.speed - Math.sign(pl.speed)*decay; }
+  pl.speed = Math.max(-HORSE_MAX*0.35, Math.min(HORSE_MAX, pl.speed));
+  if(turn !== 0) pl.heading += turn*HORSE_TURN*dt*(pl.speed < -0.1 ? -1 : 1);
+  const pos = pl.root.position;
+  pos.x += Math.sin(pl.heading)*pl.speed*dt; pos.z += Math.cos(pl.heading)*pl.speed*dt;
+  const dc = Math.hypot(pos.x, pos.z); if(dc > 55){ pos.x *= 55/dc; pos.z *= 55/dc; pl.speed *= 0.5; }
+  const tmp = { x:pos.x, z:pos.z }; if(resolveCollisions(tmp, 0.7, false)){ pos.x = tmp.x; pos.z = tmp.z; pl.speed *= 0.9; }
+  for(const o of WAR.units){ if(o.dead) continue; const ox = pos.x-o.root.position.x, oz = pos.z-o.root.position.z, min = 0.7+o.radius, d2 = ox*ox+oz*oz; if(d2 < min*min && d2 > 1e-6){ const d = Math.sqrt(d2); o.root.position.x -= ox/d*(min-d)*0.7; o.root.position.z -= oz/d*(min-d)*0.7; pos.x += ox/d*(min-d)*0.3; pos.z += oz/d*(min-d)*0.3; } }
+  pos.y = groundHeight(pos.x, pos.z);
+  pl.root.rotation.y = pl.heading;
+  animateMount(pl, Math.abs(pl.speed), dt);
+  pl.cd -= dt;
+  if(pl.swing > 0){
+    pl.swing += dt; const k = pl.swing/0.38; swingArm(pl.p, Math.min(1,k));
+    if(!pl.hitDone && k > 0.45){
+      pl.hitDone = true;
+      const fx = Math.sin(pl.heading), fz = Math.cos(pl.heading);
+      for(const o of WAR.units){
+        if(o.dead || o.team!=='invader') continue;
+        const ox = o.root.position.x-pos.x, oz = o.root.position.z-pos.z, d = Math.hypot(ox,oz);
+        if(d < 2.7 + o.radius && (ox*fx + oz*fz)/(d||1) > 0.15) damage(o, rand(38,52), pl);
+      }
+    }
+    if(k >= 1){ pl.swing = 0; pl.p.armR.rotation.set(-0.5,0,0); }
+  }
+}
+function playerDown(){
+  showWarBanner('💫 You were struck down — the army fights on!');
+  setTimeout(()=>{ if(mode==='war'){ setMode('orbit'); flyToBattle(); } }, 2600);
+}
+
+/* -------- start / end -------- */
+function dayKey(){ return new Date().toDateString(); }
+function battleCentre(){
+  let x = 0, z = 0, n = 0;
+  for(const u of WAR.units){ if(!u.dead){ x += u.root.position.x; z += u.root.position.z; n++; } }
+  return n ? new THREE.Vector3(x/n, 2, z/n) : (()=>{ const p = polar(INVADER_ANG, 32); return new THREE.Vector3(p.x, 2, p.z); })();
+}
+function flyToBattle(){
+  const c = battleCentre();
+  flyTo(c, INVADER_ANG*D2R + 1.25, 1.02, 36, 1500);
+}
+function startWar(){
+  if(WAR.state !== 'idle') return;
+  WAR.state = 'active'; WAR.firedDay = dayKey(); WAR.kills = 0; WAR.fxTarget = 1; WAR.joined = false;
+  WAR.reinforceT = 0; WAR.reinforced = false;
+  if(panelOpen) deselect();
+  if(mode==='ride') setMode('orbit');
+  agents.forEach(a=>{ if((!a.fixed && a.kind==='person') || a.group.parent===CAMPFIRE.group) a.group.visible = false; });
+  // invaders gather beyond the north-east hills, then march
+  const a = INVADER_ANG*D2R, ix = -Math.sin(a), iz = -Math.cos(a), sx = Math.cos(a), sz = -Math.sin(a);
+  const gate = polar(INVADER_ANG, 57), face = Math.atan2(ix, iz);
+  let k = 0;
+  for(let row=0; row<3; row++) for(let col=0; col<5; col++){
+    const off = col-2, back = row*1.7 + rand(-0.2,0.2);
+    spawnUnit('invader', gate.x + sx*off*1.5 - ix*back, gate.z + sz*off*1.5 - iz*back, false, face, { torch: (k++%3)===1 });
+  }
+  for(const s of [-1,1]) spawnUnit('invader', gate.x + sx*s*4.6 + ix*1.2, gate.z + sz*s*4.6 + iz*1.2, true, face);
+  // village army forms up on the square
+  for(let i=0;i<13;i++){
+    const p = polar(INVADER_ANG - 26 + (i%7)*8.5, 13.6 + Math.floor(i/7)*1.6);
+    spawnUnit('village', p.x, p.z, false, a);
+  }
+  const cap = polar(INVADER_ANG, 16.5); spawnUnit('village', cap.x, cap.z, true, a);
+  playHorn();
+  showWarBanner('⚔️ Outsiders are attacking the village!');
+  document.getElementById('warHud').classList.add('show');
+  modeToggleBtn.textContent = '⚔️ Join the Battle';
+  flyToBattle();
+  setTimeout(()=>{ if(WAR.state==='active' && !WAR.joined) showWarDialog(); }, 1900);
+}
+function joinBattle(){
+  if(WAR.state !== 'active') return;
+  WAR.joined = true; hideWarDialog();
+  if(!WAR.player || WAR.player.dead){ if(WAR.player) removeUnit(WAR.player); spawnPlayer(); }
+  setMode('war');
+}
+function leaveBattle(){ setMode('orbit'); flyToBattle(); }
+function endWar(victory){
+  if(WAR.state !== 'active') return;
+  WAR.state = 'ended'; WAR.fxTarget = 0;
+  const joined = WAR.joined;
+  setTimeout(()=>{
+    if(victory) playFanfare(); else playDefeat();
+    showWarDialog(victory ? {
+      emblem:'🏆', title:'The village is safe!',
+      text: joined ? `You and the village army drove the outsiders back beyond the hills. You defeated ${WAR.kills} attacker${WAR.kills===1?'':'s'} yourself.`
+                   : 'The village army held the line and drove the outsiders back beyond the hills.',
+      buttons:[['🏡 Return to the village', cleanupWar]]
+    } : {
+      emblem:'🔥', title:'The village has fallen…',
+      text:'The outsiders overran the defenders tonight. The villagers will rebuild by dawn — and be ready next time.',
+      buttons:[['🏡 Return to the village', cleanupWar]]
+    });
+  }, 1400);
+}
+function cleanupWar(){
+  hideWarDialog();
+  WAR.units.forEach(removeUnit); WAR.units.length = 0;
+  if(WAR.player){ removeUnit(WAR.player); WAR.player = null; }
+  WAR.torches.length = 0;
+  agents.forEach(a=>{ if((!a.fixed && a.kind==='person') || a.group.parent===CAMPFIRE.group) a.group.visible = true; });
+  document.getElementById('warHud').classList.remove('show');
+  WAR.state = 'idle';
+  setMode('orbit');
+}
+function checkWarSchedule(){
+  if(!WAR.introDone || WAR.state !== 'idle') return;
+  const ut = userTime();
+  if(ut.h === 3 && WAR.firedDay !== dayKey()) startWar();
+}
+
+/* -------- war UI -------- */
+const warDialogEl = document.getElementById('warDialog');
+function showWarDialog(cfg){
+  cfg = cfg || {
+    emblem:'⚔️', title:'The village is under attack!',
+    text:'Outsiders have crossed the hills and are marching on the village. Would you want to save the village from the outside attackers?',
+    buttons:[['⚔️ Yes — ride to battle', joinBattle], ['🛡️ No, let the army defend', ()=>{ hideWarDialog(); showWarBanner('🛡️ The village army marches out to defend!'); }]]
+  };
+  warDialogEl.querySelector('.emblem').textContent = cfg.emblem;
+  warDialogEl.querySelector('h3').textContent = cfg.title;
+  warDialogEl.querySelector('p').textContent = cfg.text;
+  const btns = warDialogEl.querySelector('.btns'); btns.innerHTML = '';
+  cfg.buttons.forEach(([label, fn], i)=>{ const b = document.createElement('button'); b.textContent = label; if(i===0) b.className = 'primary'; b.addEventListener('click', fn); btns.appendChild(b); });
+  warDialogEl.classList.add('show');
+}
+function hideWarDialog(){ warDialogEl.classList.remove('show'); }
+let warBannerTimer = null;
+function showWarBanner(text){
+  const el = document.getElementById('warBanner'); el.textContent = text; el.classList.add('show');
+  clearTimeout(warBannerTimer); warBannerTimer = setTimeout(()=> el.classList.remove('show'), 3200);
+}
+function flashDamage(){ const el = document.getElementById('warFlash'); el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); }
+function updateWarHud(){
+  if(WAR.state === 'idle') return;
+  const c = WAR.counts || { def:0, inv:0 };
+  document.getElementById('warDef').textContent = c.def;
+  document.getElementById('warInv').textContent = c.inv;
+  const pl = WAR.player, boxEl = document.getElementById('warPlayer');
+  if(pl && mode==='war'){ boxEl.style.display = 'flex'; document.getElementById('warHp').style.width = (pl.hp/pl.maxHp*100)+'%'; document.getElementById('warKills').textContent = `${WAR.kills} defeated`; }
+  else boxEl.style.display = 'none';
+}
+document.getElementById('attackBtn').addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); playerAttack(); });
+
+/* -------- sound (WebAudio, synthesized) -------- */
+let actx = null, lastClash = 0;
+function audio(){
+  if(!actx){ try{ actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return null; } }
+  if(actx.state === 'suspended') actx.resume();
+  return actx;
+}
+function tone(a, type, f0, f1, t0, dur, vol, filt){
+  const o = a.createOscillator(), g = a.createGain(); o.type = type;
+  o.frequency.setValueAtTime(f0, t0); if(f1) o.frequency.linearRampToValueAtTime(f1, t0+dur*0.3);
+  g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0+0.05); g.gain.setValueAtTime(vol, t0+dur*0.7); g.gain.linearRampToValueAtTime(0, t0+dur);
+  let node = o; if(filt){ const fl = a.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = filt; o.connect(fl); node = fl; }
+  node.connect(g); g.connect(a.destination); o.start(t0); o.stop(t0+dur+0.05);
+}
+function playHorn(){ const a = audio(); if(!a) return; const t = a.currentTime; tone(a,'sawtooth',98,110,t,2.2,0.1,800); tone(a,'sawtooth',147,165,t,2.2,0.07,900); tone(a,'sawtooth',110,123,t+2.4,1.6,0.09,800); }
+function playClash(vol){
+  const a = audio(); if(!a) return; const now = a.currentTime; if(now - lastClash < 0.12) return; lastClash = now;
+  const len = 0.15, buf = a.createBuffer(1, a.sampleRate*len, a.sampleRate), d = buf.getChannelData(0);
+  for(let i=0;i<d.length;i++) d[i] = (Math.random()*2-1)*Math.pow(1-i/d.length, 3);
+  const src = a.createBufferSource(); src.buffer = buf; const hp = a.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2200;
+  const g = a.createGain(); g.gain.value = vol; src.connect(hp); hp.connect(g); g.connect(a.destination); src.start(now);
+  tone(a,'triangle',rand(1700,2300),0,now,0.18,vol*0.25);
+}
+function playWhoosh(){
+  const a = audio(); if(!a) return; const now = a.currentTime, len = 0.25;
+  const buf = a.createBuffer(1, a.sampleRate*len, a.sampleRate), d = buf.getChannelData(0);
+  for(let i=0;i<d.length;i++) d[i] = (Math.random()*2-1)*Math.sin(Math.PI*i/d.length);
+  const src = a.createBufferSource(); src.buffer = buf; const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.setValueAtTime(600,now); bp.frequency.linearRampToValueAtTime(2400,now+len);
+  const g = a.createGain(); g.gain.value = 0.18; src.connect(bp); bp.connect(g); g.connect(a.destination); src.start(now);
+}
+function playFanfare(){ const a = audio(); if(!a) return; const t = a.currentTime; [523,659,784,1046].forEach((f,i)=> tone(a,'triangle',f,0,t+i*0.16,i===3?0.9:0.22,0.12)); }
+function playDefeat(){ const a = audio(); if(!a) return; const t = a.currentTime; [392,330,262,196].forEach((f,i)=> tone(a,'sine',f,0,t+i*0.35,0.5,0.1)); }
+
+/* ============================================================
    SMOKE, SHOOTING STARS
    ============================================================ */
 const smokePuffs = [];
@@ -2942,6 +3451,7 @@ function updateShootingStars(dt){
    DAY / NIGHT
    ============================================================ */
 const ENV = { n:1, target:1 };
+const _warRed = new THREE.Color(0x7a2a1c), _warGlow = new THREE.Color(0xd8572a);
 const _c = new THREE.Color();
 function lerpC(key, n){ return _c.copy(C.day[key]).lerp(C.night[key], n); }
 function applyEnv(n){
@@ -2973,6 +3483,11 @@ function applyEnv(n){
   birds.forEach(b=> b.g.visible = n < 0.55);
   wfMat.emissiveIntensity = 0.12 + 0.28*n;
   CLOCK_FACE_MAT.emissiveIntensity = 0.08 + 0.55*n;
+  if(WAR.fx > 0.001){
+    const red = _warRed, k = WAR.fx;
+    scene.fog.color.lerp(red, k*0.35); skyUniforms.fogc.value.lerp(red, k*0.35);
+    skyUniforms.horizon.value.lerp(_warGlow, k*0.55); skyUniforms.mid.value.lerp(_warRed, k*0.18);
+  }
   auroraMats.forEach(m=>{ m.uniforms.uOpacity.value = n*n; });
   auroraMats.forEach(m=>{ m.visible = n > 0.03; });
   rainbows.forEach(r=>{ const d = 1-n; r.m.material.uniforms.uOpacity.value = r.base*d*d; r.m.visible = n < 0.97; });
@@ -3045,6 +3560,7 @@ const activePointers = new Map();
 let pinchStartDist = null, pinchStartRadius = null;
 function pinchDistance(){ const pts = [...activePointers.values()]; return pts.length<2 ? null : Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y); }
 canvas.addEventListener('pointerdown', e=>{
+  if(mode==='war'){ playerAttack(); return; }
   if(mode!=='orbit') return;
   canvas.setPointerCapture(e.pointerId);
   activePointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
@@ -3084,7 +3600,7 @@ canvas.addEventListener('wheel', e=>{
   if(e.deltaMode === 1) d *= 16; else if(e.deltaMode === 2) d *= window.innerHeight;
   d = Math.max(-240, Math.min(240, d));
   const sens = e.ctrlKey ? 0.01 : 0.0015;              // trackpad pinch arrives as ctrl+wheel with small deltas
-  const lo = mode==='ride' ? 5 : minRadius, hi = mode==='ride' ? 28 : maxRadius;
+  const lo = mode!=='orbit' ? 5 : minRadius, hi = mode!=='orbit' ? 28 : maxRadius;
   goal.radius = Math.min(hi, Math.max(lo, goal.radius*Math.exp(d*sens)));   // proportional steps feel even near and far
   hideHint();
 }, { passive:false });
@@ -3093,7 +3609,8 @@ canvas.addEventListener('wheel', e=>{
 const keysDown = {};
 const RIDE_KEYS = ['w','a','s','d','W','A','S','D','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','e','E'];
 window.addEventListener('keydown', e=>{
-  if(mode==='ride' && RIDE_KEYS.includes(e.key)) e.preventDefault();
+  if((mode==='ride' || mode==='war') && (RIDE_KEYS.includes(e.key) || e.key===' ')) e.preventDefault();
+  if(e.key===' ' && mode==='war' && !e.repeat) playerAttack();
   keysDown[e.key] = true;
   if((e.key==='e' || e.key==='E') && mode==='ride' && nearBuildingId && !panelOpen) selectBuilding(nearBuildingId);
   if(e.key==='Escape' && panelOpen) deselect();
@@ -3204,6 +3721,7 @@ function lightLantern(id){
   updateCompassUI();
 }
 function selectBuilding(id, focus){
+  if(mode==='war') return;
   const idx = BUILDINGS.findIndex(b=>b.id===id);
   const meta = BUILDINGS[idx];
   if(!meta) return;
@@ -3269,21 +3787,42 @@ hintTimer = setTimeout(hideHint, 8000);
 const modeToggleBtn = document.getElementById('modeToggle');
 function setMode(next){
   mode = next;
+  document.body.classList.toggle('war-mode', mode==='war');
+  if(panelOpen && mode!=='orbit'){ currentId = null; panelOpen = false; panel.classList.remove('open'); updateCompassUI(); }
   if(mode === 'ride'){
-    if(panelOpen){ currentId = null; panelOpen = false; panel.classList.remove('open'); updateCompassUI(); }
     modeToggleBtn.textContent = '🖱️ Free Look';
     joystickEl.style.opacity = '1'; joystickEl.style.pointerEvents = 'auto';
     showHint('WASD / arrows to pedal · E to step inside · the dog will follow', 6000);
     returnToChase();
+  } else if(mode === 'war'){
+    modeToggleBtn.textContent = '🏳️ Leave the Battle';
+    joystickEl.style.opacity = '1'; joystickEl.style.pointerEvents = 'auto';
+    enterPromptEl.classList.remove('show');
+    showHint('WASD / arrows to ride · Space, click or ⚔️ to swing your sword', 7000);
+    returnToWarChase();
   } else {
-    modeToggleBtn.textContent = '🚲 Ride the Cycle';
+    modeToggleBtn.textContent = WAR.state==='active' ? '⚔️ Join the Battle' : '🚲 Ride the Cycle';
     joystickEl.style.opacity = '0'; joystickEl.style.pointerEvents = 'none'; joystickReset();
     enterPromptEl.classList.remove('show');
-    showHint('drag to look around · scroll to zoom · click a building to step inside', 5500);
-    flyTo(HOME.target, cam.azimuth, HOME.polar, HOME.radius, 1000);
+    if(WAR.state!=='active'){
+      showHint('drag to look around · scroll to zoom · click a building to step inside', 5500);
+      flyTo(HOME.target, cam.azimuth, HOME.polar, HOME.radius, 1000);
+    }
   }
 }
-modeToggleBtn.addEventListener('click', ()=> setMode(mode==='ride' ? 'orbit' : 'ride'));
+function returnToWarChase(){
+  const pl = WAR.player; if(!pl) return;
+  flight = null;
+  const p = pl.root.position, fwd = new THREE.Vector3(Math.sin(pl.heading), 0, Math.cos(pl.heading));
+  cam.target.copy(new THREE.Vector3(p.x, 1.8, p.z).add(fwd.multiplyScalar(1.8)));
+  cam.azimuth = pl.heading + Math.PI; cam.polar = 1.12; cam.radius = 12;
+  syncGoal();
+}
+modeToggleBtn.addEventListener('click', ()=>{
+  if(WAR.state==='active'){ if(mode==='war') leaveBattle(); else joinBattle(); return; }
+  if(mode==='war') return;
+  setMode(mode==='ride' ? 'orbit' : 'ride');
+});
 
 const timeToggleBtn = document.getElementById('timeToggle');
 timeToggleBtn.addEventListener('click', ()=>{
@@ -3342,9 +3881,10 @@ sizeMinimap();
 const mmMarkers = [];
 function drawMinimap(){
   const S = mm.width, c = mmCtx, half = S/2;
-  const zoom = mode==='ride' ? 1.9 : 1;
+  const zoom = mode!=='orbit' ? 1.9 : 1;
   const k = half/MM_WORLD*zoom;
-  const fx = mode==='ride' ? bike.x : 0, fz = mode==='ride' ? bike.z : 0;
+  const wp = (mode==='war' && WAR.player) ? WAR.player.root.position : null;
+  const fx = mode==='ride' ? bike.x : (wp ? wp.x : 0), fz = mode==='ride' ? bike.z : (wp ? wp.z : 0);
   const rot = cam.azimuth, cr = Math.cos(rot), sr = Math.sin(rot);
   const toScreen = (x,z)=>{ const px = (x-fx)*k, pz = (z-fz)*k; return [half + px*cr - pz*sr, half + px*sr + pz*cr]; };
   c.clearRect(0,0,S,S);
@@ -3366,7 +3906,14 @@ function drawMinimap(){
     c.font = `${Math.round(r*1.3)}px sans-serif`; c.fillText(b.icon, sx, sy+0.5);
     mmMarkers.push({ id:b.id, x:sx/mmDpr, y:sy/mmDpr });
   });
-  if(mode==='ride'){
+  if(WAR.units.length || WAR.player){
+    for(const u of WAR.units){ if(u.dead) continue; const [ux,uy] = toScreen(u.root.position.x, u.root.position.z); c.fillStyle = u.team==='village' ? '#7fb6ff' : '#ff5a4a'; c.beginPath(); c.arc(ux,uy,(u.mounted?2.8:2)*mmDpr,0,Math.PI*2); c.fill(); }
+    const pl = WAR.player; if(pl && !pl.dead && mode!=='war'){ const [ux,uy] = toScreen(pl.root.position.x, pl.root.position.z); c.fillStyle = '#f0c26b'; c.beginPath(); c.arc(ux,uy,3.2*mmDpr,0,Math.PI*2); c.fill(); }
+  }
+  if(mode==='war' && WAR.player){
+    c.fillStyle = '#f0c26b'; c.strokeStyle = '#7c1f1f'; c.lineWidth = 1.5*mmDpr;
+    c.beginPath(); c.moveTo(half, half-8*mmDpr); c.lineTo(half+5.5*mmDpr, half+6*mmDpr); c.lineTo(half, half+3*mmDpr); c.lineTo(half-5.5*mmDpr, half+6*mmDpr); c.closePath(); c.fill(); c.stroke();
+  } else if(mode==='ride'){
     const d = dog.group.position; const [dx,dy] = toScreen(d.x,d.z);
     c.fillStyle = '#a8723f'; c.beginPath(); c.arc(dx,dy,2.4*mmDpr,0,Math.PI*2); c.fill();
     c.fillStyle = '#ffffff'; c.strokeStyle = '#7c3f52'; c.lineWidth = 1.5*mmDpr;
@@ -3446,6 +3993,15 @@ function animate(){
     cam.radius = flight.fromRadius + (flight.toRadius-flight.fromRadius)*e;
     if(p>=1) flight = null;
     syncGoal();
+  } else if(mode==='war' && !panelOpen && WAR.player){
+    updatePlayer(dt);
+    const pl = WAR.player, pp = pl.root.position;
+    const fwd = new THREE.Vector3(Math.sin(pl.heading), 0, Math.cos(pl.heading));
+    const desired = new THREE.Vector3(pp.x, 1.8+pp.y, pp.z).add(fwd.multiplyScalar(1.8));
+    cam.target.lerp(desired, 1 - Math.pow(0.0008, dt));
+    cam.azimuth += wrapAngle(pl.heading + Math.PI - cam.azimuth) * (1 - Math.pow(0.02, dt));
+    cam.radius = Math.exp(Math.log(cam.radius) + (Math.log(goal.radius)-Math.log(cam.radius))*(1-Math.exp(-dt*10)));
+    goal.azimuth = cam.azimuth; goal.polar = cam.polar;
   } else if(mode==='ride' && !panelOpen){
     updateBike(dt);
     const fwd = new THREE.Vector3(Math.sin(bike.heading), 0, Math.cos(bike.heading));
@@ -3463,12 +4019,17 @@ function animate(){
   applyCam();
   sky.position.copy(camera.position);
   // shadow camera follows the action so the 2048 map stays crisp
-  const focus = mode==='ride' ? bikeGroup.position : cam.target;
+  const focus = mode==='ride' ? bikeGroup.position : (mode==='war' && WAR.player ? WAR.player.root.position : cam.target);
   sunLight.target.position.set(focus.x*0.5, 0, focus.z*0.5);
   sunLight.position.copy(sunLight.target.position).add(SUN_DIR.clone().lerp(MOON_DIR, ENV.n).normalize().multiplyScalar(80));
   sunLight.target.updateMatrixWorld();
 
   updateLabels();
+  if(WAR.units.length || WAR.player){ updateUnits(dt, t); if(mode!=='war' && WAR.player) updatePlayer(dt, true); }
+  if(WAR.sparks.length) updateSparks2(dt);
+  if(Math.abs(WAR.fx - WAR.fxTarget) > 0.001){ WAR.fx += Math.sign(WAR.fxTarget-WAR.fx)*Math.min(Math.abs(WAR.fxTarget-WAR.fx), dt*0.6); applyEnv(ENV.n); }
+  if(frame % 60 === 0) checkWarSchedule();
+  if(frame % 6 === 0) updateWarHud();
   updateAgents(dt, t);
   updateSmoke(dt);
   updateRipples(dt);
@@ -3566,6 +4127,10 @@ window.addEventListener('load', ()=>{
 });
 document.getElementById('enterBtn').addEventListener('click', ()=>{
   document.getElementById('intro').classList.add('hidden');
+  WAR.introDone = true;
+  audio();
+  const wantWar = WAR_TEST_NOW || /[?&]war\b/.test(location.search);
+  if(wantWar) setTimeout(startWar, 3500); else checkWarSchedule();
 });
 </script>
 </body>
