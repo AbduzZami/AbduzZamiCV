@@ -2966,9 +2966,11 @@ const bike = { x:0, z:-17.5, heading:Math.PI/2, speed:0 };
 bikeGroup.position.set(bike.x, 0, bike.z); bikeGroup.rotation.y = bike.heading;
 
 /* ============================================================
-   WAR — outsiders attack the village at 3:00 AM (visitor's own time zone)
+   WAR — outsiders attack the village 5 minutes after a visitor arrives
    ============================================================ */
-const WAR_TEST_NOW = true;          // developer switch: start a battle a few seconds after entering. Set to false for release.
+const WAR_TEST_NOW = false;         // developer switch: true starts a battle a few seconds after entering
+const WAR_DELAY_MS = 5*60*1000;     // the attack comes 5 minutes after the visitor arrives
+const WAR_ARRIVED = performance.now();
 const WAR = { state:'idle', firedDay:null, units:[], fx:0, fxTarget:0, player:null, kills:0, joined:false,
               introDone:false, reinforceT:0, reinforced:false, sparks:[], torches:[], hudT:0 };
 const INVADER_ANG = 42;
@@ -3335,8 +3337,7 @@ function cleanupWar(){
 }
 function checkWarSchedule(){
   if(!WAR.introDone || WAR.state !== 'idle') return;
-  const ut = userTime();
-  if(ut.h === 3 && WAR.firedDay !== dayKey()) startWar();
+  if(WAR.firedDay === null && performance.now() - WAR_ARRIVED >= WAR_DELAY_MS) startWar();   // once per visit
 }
 
 /* -------- war UI -------- */
