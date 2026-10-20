@@ -2209,6 +2209,46 @@ function updateRipples(dt){
   }
 }
 
+/* ============================================================
+   RAINBOWS — a double bow over the mountains + a spray bow in the falls (daylight only)
+   ============================================================ */
+const rainbows = [];
+function makeRainbow({ x, y, z, inner, outer, opacity, reverse, depthTest }){
+  const geo = new THREE.PlaneGeometry(outer*2, outer, 64, 16); geo.translate(0, outer/2, 0);
+  const mat = new THREE.ShaderMaterial({
+    uniforms:{ uOpacity:{value:opacity}, uInner:{value:inner}, uOuter:{value:outer}, uRev:{value:reverse?1:0} },
+    vertexShader:`varying vec2 vP; void main(){ vP = position.xy; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+    fragmentShader:`
+      uniform float uOpacity; uniform float uInner; uniform float uOuter; uniform float uRev; varying vec2 vP;
+      vec3 spectrum(float t){
+        vec3 c = mix(vec3(0.55,0.25,0.95), vec3(0.25,0.35,1.0), smoothstep(0.0,0.2,t));
+        c = mix(c, vec3(0.2,0.8,1.0),  smoothstep(0.15,0.35,t));
+        c = mix(c, vec3(0.3,1.0,0.35), smoothstep(0.32,0.52,t));
+        c = mix(c, vec3(1.0,0.95,0.25),smoothstep(0.5,0.68,t));
+        c = mix(c, vec3(1.0,0.55,0.15),smoothstep(0.66,0.82,t));
+        c = mix(c, vec3(1.0,0.2,0.2),  smoothstep(0.8,0.95,t));
+        return c;
+      }
+      void main(){
+        float t = (length(vP) - uInner)/(uOuter - uInner);
+        if(t < 0.0 || t > 1.0) discard;
+        float a = smoothstep(0.0,0.14,t)*(1.0-smoothstep(0.86,1.0,t));
+        a *= smoothstep(0.0, 0.22, vP.y/uOuter);
+        gl_FragColor = vec4(spectrum(uRev > 0.5 ? 1.0-t : t), a*uOpacity);
+      }`,
+    transparent:true, depthWrite:false, depthTest:depthTest!==false, side:THREE.DoubleSide, fog:false
+  });
+  const m = dyn(new THREE.Mesh(geo, mat)); m.position.set(x,y,z); m.frustumCulled = false;
+  scene.add(m); rainbows.push({ m, base:opacity });
+}
+(()=>{
+  const p = polar(338, 250);
+  makeRainbow({ x:p.x, y:-12, z:p.z, inner:118, outer:132, opacity:0.55 });
+  makeRainbow({ x:p.x, y:-12, z:p.z, inner:150, outer:160, opacity:0.2, reverse:true });
+  const b = { x:MTN_DIR.x*(WF.r-3.5), z:MTN_DIR.z*(WF.r-3.5) };
+  makeRainbow({ x:b.x, y:-1.2, z:b.z, inner:4.3, outer:5.2, opacity:0.45 });
+})();
+
 /* -------- distant hills & mountains -------- */
 (()=>{
   const hillMat = new THREE.MeshStandardMaterial({ color:0x355a40, roughness:1, flatShading:true });
@@ -2804,6 +2844,7 @@ function applyEnv(n){
   CLOCK_FACE_MAT.emissiveIntensity = 0.08 + 0.55*n;
   auroraMats.forEach(m=>{ m.uniforms.uOpacity.value = n*n; });
   auroraMats.forEach(m=>{ m.visible = n > 0.03; });
+  rainbows.forEach(r=>{ const d = 1-n; r.m.material.uniforms.uOpacity.value = r.base*d*d; r.m.visible = n < 0.97; });
 }
 applyEnv(ENV.n);
 
@@ -3310,6 +3351,7 @@ function animate(){
   waterTex.offset.x = t*0.012; waterTex.offset.y = t*0.007;
   streamTex.offset.y = -t*0.35;
   if(ENV.n > 0.03) for(let i=0;i<auroraMats.length;i++) auroraMats[i].uniforms.uTime.value = t;
+  if(ENV.n < 0.97) for(const r of rainbows) r.m.rotation.y = Math.atan2(camera.position.x - r.m.position.x, camera.position.z - r.m.position.z);
   for(let i=0;i<animUpdaters.length;i++) animUpdaters[i](dt, t);
 
   // clock hands — real local time
