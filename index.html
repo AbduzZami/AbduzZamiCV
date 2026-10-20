@@ -711,7 +711,7 @@ const LAMP_POOL = new THREE.MeshBasicMaterial({ map:glowTex, color:0xffa850, tra
    ============================================================ */
 const PAL = {
   day:   { top:0x2f6fc4, mid:0x8dbde9, horizon:0xf3efe0, fog:0xc6dbe8, hemiSky:0xdcebff, hemiGround:0x6b7a4a, hemiI:0.8, dirC:0xfff6e8, dirI:1.1, ambI:0.22, fogNear:90, fogFar:260, water:0x4fa3c4, cloud:0xffffff },
-  night: { top:0x0b1230, mid:0x22235a, horizon:0xc9785a, fog:0x2c2a4a, hemiSky:0x8a99c9, hemiGround:0x2a2f22, hemiI:0.62, dirC:0xbcd0ff, dirI:0.5, ambI:0.2, fogNear:60, fogFar:205, water:0x2f6f8a, cloud:0x464b74 }
+  night: { top:0x0b1230, mid:0x22235a, horizon:0x35606e, fog:0x2c2a4a, hemiSky:0x8a99c9, hemiGround:0x2a2f22, hemiI:0.62, dirC:0xbcd0ff, dirI:0.5, ambI:0.2, fogNear:60, fogFar:205, water:0x2f6f8a, cloud:0x464b74 }
 };
 const C = {}; ['day','night'].forEach(k=>{ C[k]={}; for(const p in PAL[k]) if(typeof PAL[k][p]==='number' && p!=='hemiI' && p!=='dirI' && p!=='ambI' && p!=='fogNear' && p!=='fogFar') C[k][p]=new THREE.Color(PAL[k][p]); });
 
@@ -766,6 +766,70 @@ function makeStars(count, size){
   const pts = new THREE.Points(geo, mat); scene.add(pts); return pts;
 }
 const starsA = makeStars(700, 1.4), starsB = makeStars(160, 2.4);
+
+/* ============================================================
+   AURORA — shader curtains over the mountains, night only
+   ============================================================ */
+const auroraMats = [];
+(()=>{
+  const vert = `
+    attribute vec3 aN; uniform float uTime; uniform float uPhase; varying vec2 vUv;
+    void main(){
+      vUv = uv;
+      vec3 p = position;
+      float w = sin(uv.x*14.0 + uTime*0.22 + uPhase)*7.0 + sin(uv.x*31.0 - uTime*0.37 + uPhase*2.0)*3.5;
+      w *= 0.5 + 0.9*uv.y;
+      p += aN * w;
+      p.y += sin(uv.x*9.0 + uTime*0.15 + uPhase)*6.0;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+    }`;
+  const frag = `
+    uniform float uTime; uniform float uPhase; uniform float uOpacity; uniform vec3 cLow; uniform vec3 cMid; uniform vec3 cHigh; varying vec2 vUv;
+    float hash(float n){ return fract(sin(n)*43758.5453); }
+    float noise(float x){ float i = floor(x), f = fract(x); return mix(hash(i), hash(i+1.0), f*f*(3.0-2.0*f)); }
+    void main(){
+      float x = vUv.x, y = vUv.y;
+      float rays = noise(x*190.0 + uTime*0.7 + uPhase*13.0)*0.55 + noise(x*70.0 - uTime*0.35 + uPhase*7.0)*0.45;
+      rays = pow(rays, 1.5);
+      float band = 0.25 + 0.75*noise(x*7.0 + uTime*0.06 + uPhase*3.0);
+      float pulse = 0.75 + 0.25*sin(uTime*0.5 + x*20.0 + uPhase);
+      float a = smoothstep(0.0, 0.07, y) * (1.0 - smoothstep(0.22, 1.0, y)) * rays * band * pulse;
+      a *= smoothstep(0.0, 0.1, x) * (1.0 - smoothstep(0.9, 1.0, x));
+      vec3 col = mix(cLow, cMid, smoothstep(0.0, 0.4, y));
+      col = mix(col, cHigh, smoothstep(0.4, 1.0, y));
+      col += vec3(0.55, 1.0, 0.75) * (1.0 - smoothstep(0.0, 0.12, y)) * 0.5;
+      gl_FragColor = vec4(col, clamp(a*uOpacity*1.35, 0.0, 1.0));
+    }`;
+  function curtain({ center, span, radius, wobble, y0, h, phase, high }){
+    const seg = 180, rows = 8, pos = [], uv = [], nrm = [], idx = [];
+    for(let i=0;i<=seg;i++){
+      const t = i/seg, a = (center - span/2 + span*t)*D2R;
+      const r = radius + Math.sin(t*Math.PI*3 + phase)*wobble;
+      const x = Math.sin(a)*r, z = Math.cos(a)*r;
+      for(let j=0;j<=rows;j++){ const v = j/rows; pos.push(x, y0 + v*h, z); uv.push(t, v); nrm.push(Math.sin(a), 0, Math.cos(a)); }
+    }
+    for(let i=0;i<seg;i++) for(let j=0;j<rows;j++){
+      const k = i*(rows+1)+j, n = k+rows+1;
+      idx.push(k, n, k+1, k+1, n, n+1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv,2));
+    g.setAttribute('aN', new THREE.Float32BufferAttribute(nrm,3));
+    g.setIndex(idx);
+    const mat = new THREE.ShaderMaterial({
+      uniforms:{ uTime:{value:0}, uPhase:{value:phase}, uOpacity:{value:1},
+        cLow:{value:new THREE.Color(0x3dffa0)}, cMid:{value:new THREE.Color(0x22d6a8)}, cHigh:{value:new THREE.Color(high)} },
+      vertexShader:vert, fragmentShader:frag, transparent:true, depthWrite:false, side:THREE.DoubleSide,
+      blending:THREE.AdditiveBlending, fog:false
+    });
+    const m = new THREE.Mesh(g, mat); m.frustumCulled = false; m.renderOrder = -5;
+    scene.add(m); auroraMats.push(mat);
+  }
+  curtain({ center:338, span:125, radius:300, wobble:30, y0:36, h:140, phase:0.0, high:0x8a5cff });
+  curtain({ center:22,  span:90,  radius:330, wobble:24, y0:50, h:115, phase:2.1, high:0xc46bff });
+  curtain({ center:293, span:90,  radius:280, wobble:20, y0:58, h:100, phase:4.3, high:0x6b7bff });
+})();
 
 /* ============================================================
    GROUND, PLAZA & PATHS
@@ -2725,7 +2789,7 @@ function applyEnv(n){
   sunLight.position.copy(dir).multiplyScalar(80);
   ambient.intensity = PAL.day.ambI + (PAL.night.ambI-PAL.day.ambI)*n;
   waterMat.color.copy(lerpC('water',n)); streamMat.color.copy(waterMat.color);
-  cloudMat.color.copy(lerpC('cloud',n));
+  cloudMat.color.copy(lerpC('cloud',n)); cloudMat.opacity = 0.92 - 0.4*n;
   starsA.material.opacity = 0.85*n; starsB.material.opacity = 0.95*n;
   starsA.visible = starsB.visible = n > 0.02;
   moonMesh.material.opacity = n; moonGlow.material.opacity = 0.4*n; moonMesh.visible = moonGlow.visible = n > 0.02;
@@ -2738,6 +2802,8 @@ function applyEnv(n){
   birds.forEach(b=> b.g.visible = n < 0.55);
   wfMat.emissiveIntensity = 0.12 + 0.28*n;
   CLOCK_FACE_MAT.emissiveIntensity = 0.08 + 0.55*n;
+  auroraMats.forEach(m=>{ m.uniforms.uOpacity.value = n*n; });
+  auroraMats.forEach(m=>{ m.visible = n > 0.03; });
 }
 applyEnv(ENV.n);
 
@@ -2780,7 +2846,7 @@ function updateLabels(){
    ============================================================ */
 let mode = 'orbit';
 let hintTimer = null;
-const HOME = { target:new THREE.Vector3(0,7,2), polar:1.14, radius:54 };
+const HOME = { target:new THREE.Vector3(0,8,0), polar:1.25, radius:58 };
 const cam = { target:HOME.target.clone(), azimuth:2.75, polar:HOME.polar, radius:HOME.radius };
 const minPolar = 0.5, maxPolar = 1.48, minRadius = 5, maxRadius = 85;
 function applyCam(){
@@ -3243,6 +3309,7 @@ function animate(){
   // water
   waterTex.offset.x = t*0.012; waterTex.offset.y = t*0.007;
   streamTex.offset.y = -t*0.35;
+  if(ENV.n > 0.03) for(let i=0;i<auroraMats.length;i++) auroraMats[i].uniforms.uTime.value = t;
   for(let i=0;i<animUpdaters.length;i++) animUpdaters[i](dt, t);
 
   // clock hands — real local time
