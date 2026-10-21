@@ -710,7 +710,7 @@ const maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
 
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0x2c2a4a, 55, 175);
-const camera = new THREE.PerspectiveCamera(48, window.innerWidth/window.innerHeight, 0.1, 700);
+const camera = new THREE.PerspectiveCamera(48, window.innerWidth/window.innerHeight, 0.3, 700);
 
 /* ============================================================
    PROCEDURAL TEXTURES
@@ -813,7 +813,7 @@ const M = {
   stoneLt:  new THREE.MeshStandardMaterial({ color:0xb8ae9b, roughness:0.95 }),
   metal:    new THREE.MeshStandardMaterial({ color:0x2a2a2a, metalness:0.5, roughness:0.5 }),
   gold:     new THREE.MeshStandardMaterial({ color:0xd4a24c, metalness:0.5, roughness:0.4 }),
-  window:   new THREE.MeshStandardMaterial({ color:0x5b4321, emissive:0xffc677, emissiveIntensity:0.9, roughness:0.5 }),
+  window:   new THREE.MeshStandardMaterial({ color:0x5b4321, emissive:0xffc677, emissiveIntensity:0.9, roughness:0.5, polygonOffset:true, polygonOffsetFactor:-2, polygonOffsetUnits:-4 }),
   bulb:     new THREE.MeshStandardMaterial({ color:0xfff1c9, emissive:0xffcf7a, emissiveIntensity:1.6, roughness:0.4 }),
   hay:      new THREE.MeshStandardMaterial({ color:0xd9b55a, roughness:1 }),
   cream:    new THREE.MeshStandardMaterial({ color:0xf3ead2, roughness:0.85 }),
@@ -2838,9 +2838,9 @@ const TRAIN = (()=>{
   const whistle = cyl(0.06, 0.08, 0.4, 8, brass); whistle.position.set(0, 3.1, -0.7); loco.add(whistle);
   const cab = box(2.3, 2.3, 2.1, paint); cab.position.set(0, 2.45, -2.65); loco.add(cab);
   const cabRoof = box(2.6, 0.14, 2.6, black); cabRoof.position.set(0, 3.68, -2.65); loco.add(cabRoof);
-  for(const sx of [-1,1]){ const win = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.7), M.window); win.position.set(sx*1.16, 2.9, -2.4); win.rotation.y = sx*Math.PI/2; loco.add(win); }
+  for(const sx of [-1,1]){ const win = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.7), M.window); win.position.set(sx*1.185, 2.9, -2.4); win.rotation.y = sx*Math.PI/2; loco.add(win); }
   const plateTex = canvasTex(256, 96, (ctx,w,h)=>{ ctx.fillStyle='#a3282a'; ctx.fillRect(0,0,w,h); ctx.strokeStyle='#f0c26b'; ctx.lineWidth=8; ctx.strokeRect(6,6,w-12,h-12); ctx.fillStyle='#f6e2a8'; ctx.font='bold 54px Georgia, serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('AZ · 01', w/2, h/2+3); });
-  for(const sx of [-1,1]){ const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.34), new THREE.MeshStandardMaterial({ map:plateTex, roughness:0.5 })); pl.position.set(sx*1.165, 2.35, -2.9); pl.rotation.y = sx*Math.PI/2; loco.add(pl); }
+  for(const sx of [-1,1]){ const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.34), new THREE.MeshStandardMaterial({ map:plateTex, roughness:0.5, polygonOffset:true, polygonOffsetFactor:-2, polygonOffsetUnits:-4 })); pl.position.set(sx*1.19, 2.35, -2.9); pl.rotation.y = sx*Math.PI/2; loco.add(pl); }
   const beam = box(2.3, 0.45, 0.25, red); beam.position.set(0, 1.0, 4.1); loco.add(beam);
   for(const sx of [-0.8,0.8]){ const buf = cyl(0.13,0.13,0.4,10,black); buf.rotation.x = Math.PI/2; buf.position.set(sx, 1.0, 4.4); loco.add(buf); }
   const pilot = new THREE.Mesh(new THREE.ConeGeometry(1.1, 0.9, 4, 1, false, Math.PI/4), red); pilot.rotation.x = Math.PI/2; pilot.scale.set(1, 1, 0.6); pilot.position.set(0, 0.55, 4.55); loco.add(pilot);
@@ -2863,24 +2863,31 @@ const TRAIN = (()=>{
   // coaches
   const liveryTex = canvasTex(1024, 128, (ctx,w,h)=>{ ctx.fillStyle='#6e1f2c'; ctx.fillRect(0,0,w,h); ctx.fillStyle='#d4a24c'; ctx.fillRect(0,10,w,4); ctx.fillRect(0,h-14,w,4); ctx.fillStyle='#f6e2a8'; ctx.font='bold 64px Georgia, serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('THE VILLAGE EXPRESS', w/2, h/2+3); });
   liveryTex.wrapS = liveryTex.wrapT = THREE.ClampToEdgeWrapping;
-  const liveryMat = new THREE.MeshStandardMaterial({ map:liveryTex, roughness:0.55 });
+  const liveryMat = new THREE.MeshStandardMaterial({ map:liveryTex, roughness:0.55, polygonOffset:true, polygonOffsetFactor:-2, polygonOffsetUnits:-4 });
   function coach(label){
     const c = new THREE.Group();
     const body = box(2.5, 1.4, 7.4, maroon); body.position.y = 1.75; c.add(body);
-    const upper = box(2.5, 1.05, 7.4, cream); upper.position.y = 2.97; c.add(upper);
-    const roof = new THREE.Mesh(new THREE.CylinderGeometry(1.45, 1.45, 7.6, 18, 1, false, -Math.PI/2.9, Math.PI/1.45), new THREE.MeshStandardMaterial({ color:0x3a3a3c, roughness:0.7 }));
-    roof.rotation.x = Math.PI/2; roof.rotation.y = Math.PI/2; roof.rotation.order = 'YXZ'; roof.position.y = 2.75; c.add(roof);
+    const upper = box(2.5, 1.05, 7.4, cream); upper.position.y = 2.975; c.add(upper);
+    // curved roof: an arc of a cylinder lying along the coach, sitting on the cream upper panel
+    const RR = 1.45, half = Math.asin(1.25/RR), roofMatC = new THREE.MeshStandardMaterial({ color:0x3a3a3c, roughness:0.7 });
+    const roofY = 3.5 - RR*Math.cos(half);
+    const roof = new THREE.Mesh(new THREE.CylinderGeometry(RR, RR, 7.6, 18, 1, true, Math.PI - half, 2*half), roofMatC);
+    roof.rotation.x = Math.PI/2; roof.position.y = roofY; c.add(roof);
+    const capShape = new THREE.Shape(); capShape.moveTo(-1.25, 0);
+    for(let k=0;k<=12;k++){ const a = -half + 2*half*k/12; capShape.lineTo(RR*Math.sin(a), roofY - 3.5 + RR*Math.cos(a)); }
+    capShape.lineTo(1.25, 0); capShape.closePath();
+    for(const zs of [-1, 1]){ const cap = new THREE.Mesh(new THREE.ShapeGeometry(capShape), roofMatC); cap.position.set(0, 3.5, zs*3.8); if(zs < 0) cap.rotation.y = Math.PI; c.add(cap); }
     for(const sx of [-1,1]){
-      const band = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 0.62), liveryMat); band.position.set(sx*1.255, 1.55, 0); band.rotation.y = sx*Math.PI/2; c.add(band);
-      for(let k=0;k<5;k++){ const w = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.72), M.window); w.position.set(sx*1.256, 2.95, -2.8 + k*1.4); w.rotation.y = sx*Math.PI/2; c.add(w); }
-      const doorC = box(0.04, 1.9, 0.8, maroon); doorC.position.set(sx*1.27, 1.95, 3.25); c.add(doorC);
+      const band = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 0.62), liveryMat); band.position.set(sx*1.285, 1.55, 0); band.rotation.y = sx*Math.PI/2; c.add(band);
+      for(let k=0;k<5;k++){ const w = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.72), M.window); w.position.set(sx*1.285, 2.95, -2.8 + k*1.4); w.rotation.y = sx*Math.PI/2; c.add(w); }
+      const doorC = box(0.05, 1.9, 0.8, maroon); doorC.position.set(sx*1.3, 1.95, 3.25); c.add(doorC);
     }
     const fr = box(2.2, 0.3, 7.6, black); fr.position.y = 0.95; c.add(fr);
     for(const z of [-2.6, 2.6]){
       const bogie = box(1.9, 0.35, 1.8, black); bogie.position.set(0, 0.6, z); c.add(bogie);
       for(const zz of [-0.55, 0.55]) for(const sx of [-1,1]){ const w = wheel(0.36, black); w.position.set(sx*0.88, 0.38, z+zz); c.add(w); }
     }
-    for(const z of [-3.85, 3.85]){ const gw = box(1.2, 2.0, 0.3, black); gw.position.set(0, 2.1, z); c.add(gw); }
+    for(const z of [-3.92, 3.92]){ const gw = box(1.2, 2.0, 0.3, black); gw.position.set(0, 2.1, z); c.add(gw); }
     return c;
   }
   const cars = [
@@ -2890,7 +2897,7 @@ const TRAIN = (()=>{
   // offsets: distance from the loco front back to each car centre
   let acc = 0; cars.forEach(c=>{ c.off = acc + c.len/2; acc += c.len + 0.35; });
   const totalLen = acc;
-  cars.forEach(c=>{ c.obj.traverse(o=>{ if(o.isMesh){ o.castShadow = true; o.receiveShadow = true; } }); dyn(c.obj); c.obj.traverse(dyn); scene.add(c.obj); });
+  cars.forEach(c=>{ c.obj.traverse(o=>{ if(o.isMesh){ o.castShadow = true; o.receiveShadow = false; } }); dyn(c.obj); c.obj.traverse(dyn); scene.add(c.obj); });
   const passenger = cars.find(c=>c.passenger);
   return { cars, loco, drivers, rods, wheels, lampGlow, totalLen, passenger, stackLocal:new THREE.Vector3(0, 4.05, 3.9) };
 })();
