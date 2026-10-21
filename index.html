@@ -2707,10 +2707,6 @@ for(let i=0;i<RAIL.N;i+=8){ const p = RAIL.pts[i]; claim(p.x, p.z, 2.6); }
     g.traverse(o=>{ if(o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
     scene.add(g);
   }
-  for(const l of [-7.2, 7.2]){
-    const col = cyl(0.45, 0.55, 5.4, 8, portMat);
-    col.position.set(MTN_DIR.x*62.75 + MTN_SIDE.x*l, 12.2, MTN_DIR.z*62.75 + MTN_SIDE.z*l); col.castShadow = true; scene.add(col);
-  }
   // little lamps along the gallery wall
   for(const l of [-9, -3.5, 3.5, 9]){
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), M.bulb);
@@ -2840,9 +2836,9 @@ const STATION = (()=>{
     ctx.fillStyle='#f6eedb'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font='bold 96px Georgia, serif'; ctx.fillText('VILLAGE STATION', w/2, h/2+4);
   });
   nameTex.wrapS = nameTex.wrapT = THREE.ClampToEdgeWrapping;
-  const boardMat = new THREE.MeshStandardMaterial({ map:nameTex, roughness:0.7, emissive:0xffffff, emissiveMap:nameTex, emissiveIntensity:0.12, side:THREE.DoubleSide });
+  const boardMat = new THREE.MeshStandardMaterial({ map:nameTex, roughness:0.7, emissive:0xffffff, emissiveMap:nameTex, emissiveIntensity:0.12 });
   for(const x of [-13.2, 13.2]){
-    const bd = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 0.8), boardMat); bd.position.set(x, PT+2.3, Z(P0+1.2)); g.add(bd);
+    for(const face of [0, Math.PI]){ const bd = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 0.8), boardMat); bd.position.set(x, PT+2.3, Z(P0+1.2) + (face ? -0.02 : 0.02)); bd.rotation.y = face; g.add(bd); }
     for(const sx of [-1.9,1.9]){ const p = cyl(0.05,0.05,2.6,6,M.metal); p.position.set(x+sx, PT+1.3, Z(P0+1.2)); g.add(p); }
   }
   // hanging station clock (real time)
