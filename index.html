@@ -2598,10 +2598,16 @@ const RAIL = (()=>{
   const S = polar(208, 57), Tst = new THREE.Vector3(Math.cos(208*D2R), 0, -Math.sin(208*D2R));
   const G = l => new THREE.Vector3(MTN_DIR.x*64.4 + MTN_SIDE.x*l, 10.05, MTN_DIR.z*64.4 + MTN_SIDE.z*l);
   const P = (deg, r, y) => { const p = polar(deg, r); return new THREE.Vector3(p.x, Math.max(0.35, y), p.z); };
+  // the cave: a straight tunnel along the chord from 240° to 282°
+  const A0 = polar(240, 58.8), A1 = polar(282, 58.8);
+  const HILL = { mid:new THREE.Vector3((A0.x+A1.x)/2, 0, (A0.z+A1.z)/2), dir:new THREE.Vector3(A1.x-A0.x, 0, A1.z-A0.z).normalize(), half:Math.hypot(A1.x-A0.x, A1.z-A0.z)/2, hw:6.6, y0:0.45, y1:3.3 };
+  HILL.perp = new THREE.Vector3(-HILL.dir.z, 0, HILL.dir.x);
+  const C = t => { const k = (t + HILL.half)/(2*HILL.half); return new THREE.Vector3(HILL.mid.x + HILL.dir.x*t, HILL.y0 + (HILL.y1-HILL.y0)*k, HILL.mid.z + HILL.dir.z*t); };
   const st = (k) => new THREE.Vector3(S.x + Tst.x*k, 0.35, S.z + Tst.z*k);
   const ctrl = [
     st(-16), st(-8), st(0), st(8), st(16),
-    P(239,58,0.35), P(251,58.5,1.0), P(263,58.5,2.3), P(278,58.5,4.1), P(292,59,6.0), P(305,60.2,7.9), P(316,62.6,9.4),
+    C(-HILL.half), C(-HILL.half*2/3), C(-HILL.half/3), C(0), C(HILL.half/3), C(HILL.half*2/3), C(HILL.half),
+    P(292,59.4,5.0), P(304,60.4,7.2), P(316,62.6,9.3),
     G(-17), G(-11), G(-5.5), G(0), G(5.5), G(11), G(17),
     P(4,62.8,9.4), P(17,60.8,8.4), P(32,59.6,7.2), P(48,59,6.0), P(64,58.6,4.9), P(80,58.5,3.9), P(96,58.5,3.0),
     P(112,58.5,2.4), P(126,58.5,2.2), P(140,58,1.5), P(155,57.6,0.75), P(169,57.5,0.35)
@@ -2623,7 +2629,10 @@ const RAIL = (()=>{
   const inCliff = p => { const dep = p.x*MTN_DIR.x + p.z*MTN_DIR.z, lat = p.x*MTN_SIDE.x + p.z*MTN_SIDE.z; return dep > 60 && Math.abs(lat) < 11.6; };
   let g0 = null, g1 = null;
   for(let i=0;i<N;i++){ if(inCliff(pts[i])){ if(g0===null) g0 = i*ds; g1 = i*ds; } }
-  return { curve, L, ds, N, pts, at, tangent, inner, S, Tst, sStation, gallery:[g0, g1], inCliff };
+  const inHill = (p, m=0) => { const dx = p.x-HILL.mid.x, dz = p.z-HILL.mid.z; return Math.abs(dx*HILL.dir.x + dz*HILL.dir.z) < HILL.half + m && Math.abs(dx*HILL.perp.x + dz*HILL.perp.z) < HILL.hw + m; };
+  let h0 = null, h1 = null;
+  for(let i=0;i<N;i++){ if(inHill(pts[i], -0.3)){ if(h0===null) h0 = i*ds; h1 = i*ds; } }
+  return { curve, L, ds, N, pts, at, tangent, inner, S, Tst, sStation, gallery:[g0, g1], inCliff, HILL, inHill, cave:[h0, h1] };
 })();
 function nearTrack(x, z, m){
   const lim = (1.9 + m)**2;
@@ -2673,7 +2682,7 @@ for(let i=0;i<RAIL.N;i+=8){ const p = RAIL.pts[i]; claim(p.x, p.z, 2.6); }
   // viaduct piers with arched heads
   const piers = [];
   for(let s=0; s<RAIL.L; s+=6.5){
-    const p = RAIL.at(s); if(p.y < 1.6 || RAIL.inCliff(p) || nearRiver(p.x, p.z, 0.8)) continue;
+    const p = RAIL.at(s); if(p.y < 1.6 || RAIL.inCliff(p) || RAIL.inHill(p, 1) || nearRiver(p.x, p.z, 0.8)) continue;
     piers.push([p, RAIL.tangent(s)]);
   }
   const pierGeo = new THREE.BoxGeometry(1,1,1); pierGeo.translate(0,0.5,0);
@@ -2708,6 +2717,90 @@ for(let i=0;i<RAIL.N;i+=8){ const p = RAIL.pts[i]; claim(p.x, p.z, 2.6); }
     b.position.set(MTN_DIR.x*65.8 + MTN_SIDE.x*l, 12.6, MTN_DIR.z*65.8 + MTN_SIDE.z*l); scene.add(b);
     const gl = new THREE.Sprite(LAMP_GLOW); gl.scale.setScalar(1.6); gl.position.copy(b.position); scene.add(gl);
   }
+})();
+
+/* -------- the cave: a rocky hill with a lit tunnel where the train sleeps -------- */
+(()=>{
+  const H = RAIL.HILL, yaw = Math.atan2(H.dir.x, H.dir.z), LEN = H.half*2 + 0.4, HH = 11, W = H.hw*2, TAP = 0.6;
+  // hill body: jittered box, rock on the sides fading to grass on top, open at the two portal ends
+  const geo = new THREE.BoxGeometry(W, HH, LEN, 6, 6, 14);
+  const pos = geo.attributes.position, seen = new Map(), cols = [];
+  const rock = new THREE.Color(0x6f6858), grass = new THREE.Color(0x3f6b3e), tmp = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i), key = x.toFixed(2)+'|'+y.toFixed(2)+'|'+z.toFixed(2);
+    if(!seen.has(key)){
+      const top = y > HH/2 - 0.01, bottom = y < -HH/2 + 0.01, end = Math.abs(z) > LEN/2 - 0.01;
+      const hump = top ? (1 - Math.pow(Math.abs(z)/(LEN/2), 2)) * 4.5 * (1 - Math.pow(Math.abs(x)/(W/2), 2)) : 0;
+      seen.set(key, [end ? 0 : rnd(-1.1,1.1), bottom ? 0 : (top ? hump + rnd(-0.6,1.0) : rnd(-0.7,0.7)), end ? 0 : rnd(-0.8,0.8)]);
+    }
+    const o = seen.get(key);
+    const h01 = (y + HH/2)/HH, taper = 1 - TAP*Math.pow(h01, 1.1);          // sides lean in: a mound, not a box
+    const zt = Math.abs(z) > LEN/2 - 0.01 ? 1 : (1 - 0.1*Math.pow(h01, 1.5));
+    pos.setXYZ(i, (x + (Math.abs(x) > W/2-0.01 ? o[0] : o[0]*0.3))*taper, y + o[1], (z + o[2])*zt);
+  }
+  geo.computeVertexNormals();
+  for(let i=0;i<pos.count;i++){ const y = pos.getY(i), n = geo.attributes.normal.getY(i); tmp.copy(rock).lerp(grass, Math.max(THREE.MathUtils.smoothstep(n, 0.3, 0.55), THREE.MathUtils.smoothstep(y, HH/2-2, HH/2)*0.9)).offsetHSL(0, 0, ((i*7919)%13)/13*0.06-0.03); cols.push(tmp.r, tmp.g, tmp.b); }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  const hillMat = new THREE.MeshStandardMaterial({ vertexColors:true, roughness:1, flatShading:true });
+  const hidden = new THREE.MeshBasicMaterial({ visible:false });
+  // BoxGeometry face groups: +x, -x, +y, -y, +z, -z — leave the two ends (along the tunnel) open
+  const hill = new THREE.Mesh(geo, [hillMat, hillMat, hillMat, hidden, hidden, hidden]);
+  hill.position.set(H.mid.x, HH/2 - 0.6, H.mid.z); hill.rotation.y = yaw; hill.castShadow = true; hill.receiveShadow = true; scene.add(hill);
+  // tunnel lining (seen from inside only)
+  const TW = 2.6, TWALL = 3.6, shape = new THREE.Shape();
+  shape.moveTo(-TW, 0); shape.lineTo(-TW, TWALL); shape.absarc(0, TWALL, TW, Math.PI, 0, true); shape.lineTo(TW, 0); shape.closePath();
+  const lining = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth:LEN, bevelEnabled:false, curveSegments:14 }),
+    [new THREE.MeshBasicMaterial({ visible:false }), new THREE.MeshStandardMaterial({ color:0x4a433b, roughness:1, side:THREE.BackSide, flatShading:true })]);
+  const tun = new THREE.Group(); tun.position.set(H.mid.x, (H.y0 + H.y1)/2 - 0.42, H.mid.z); tun.rotation.order = 'YXZ'; tun.rotation.y = yaw;
+  tun.rotation.x = -Math.atan2(H.y1 - H.y0, H.half*2);
+  lining.position.z = -LEN/2; tun.add(lining);
+  for(let z = -LEN/2 + 4; z < LEN/2 - 2; z += 6.5){
+    for(const sx of [-1, 1]){
+      const b = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), M.bulb); b.position.set(sx*(TW-0.15), 3.3, z); tun.add(b);
+      const gl = new THREE.Sprite(LAMP_GLOW); gl.scale.setScalar(1.5); gl.position.copy(b.position); tun.add(gl);
+    }
+  }
+  scene.add(tun);
+  // stone portals with arched openings at both ends
+  const makeFace = (top)=>{
+    const tw = W/2*(1-TAP) + 0.8;
+    const f = new THREE.Shape(); f.moveTo(-W/2-0.9, -0.6); f.lineTo(W/2+0.9, -0.6); f.lineTo(W/2*0.86+0.9, top*0.45); f.lineTo(tw, top-0.6); f.lineTo(tw*0.3, top+0.5); f.lineTo(-tw*0.4, top+0.2); f.lineTo(-tw, top-0.8); f.lineTo(-W/2*0.86-0.9, top*0.5); f.closePath();
+    const hole = new THREE.Path(); hole.moveTo(-TW, 0); hole.lineTo(-TW, TWALL); hole.absarc(0, TWALL, TW, Math.PI, 0, true); hole.lineTo(TW, 0); hole.closePath();
+    f.holes.push(hole); return f;
+  };
+  const portalMat = new THREE.MeshStandardMaterial({ color:0x9a9184, roughness:1, side:THREE.DoubleSide });
+  for(const end of [-1, 1]){
+    const t = end*(LEN/2), y = end < 0 ? H.y0 : H.y1;
+    const g = new THREE.Group(); g.position.set(H.mid.x + H.dir.x*t, y - 0.42, H.mid.z + H.dir.z*t); g.rotation.y = yaw;
+    const f = new THREE.Mesh(new THREE.ShapeGeometry(makeFace(HH - 0.6 - (y - 0.42) + 0.6), 14), portalMat); f.position.z = end*0.05; g.add(f);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(TW + 0.3, 0.32, 6, 18, Math.PI), M.stoneLt); ring.position.y = TWALL; ring.position.z = end*0.2; g.add(ring);
+    for(const sx of [-1, 1]){ const pil = box(0.6, TWALL, 0.6, M.stoneLt); pil.position.set(sx*(TW + 0.3), TWALL/2, end*0.2); g.add(pil); }
+    const key = box(0.7, 0.8, 0.7, M.gold); key.position.set(0, TWALL + TW + 0.35, end*0.25); g.add(key);
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), M.bulb); lamp.position.set(TW + 1.4, 3.6, end*0.6); g.add(lamp);
+    const lg = new THREE.Sprite(LAMP_GLOW); lg.scale.setScalar(2); lg.position.copy(lamp.position); g.add(lg);
+    g.traverse(o=>{ if(o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
+    scene.add(g);
+  }
+  // a few boulders and bushes on the hilltop
+  for(let i=0;i<10;i++){
+    const t = rnd(-H.half+5, H.half-5), l = rnd(-H.hw*0.3, H.hw*0.3);
+    const top = HH - 0.6 + (1 - Math.pow(t/(LEN/2), 2))*4.5*(1 - Math.pow(l/(W/2*0.4), 2));
+    const isRock = i % 3 === 0;
+    const m = new THREE.Mesh(isRock ? new THREE.DodecahedronGeometry(rnd(0.6,1.2), 0) : new THREE.IcosahedronGeometry(rnd(0.7,1.3), 0),
+      isRock ? M.stone : new THREE.MeshStandardMaterial({ color:0x3f6b3a, roughness:1, flatShading:true }));
+    m.position.set(H.mid.x + H.dir.x*t + H.perp.x*l, top - 0.2, H.mid.z + H.dir.z*t + H.perp.z*l); m.castShadow = true; scene.add(m);
+  }
+  // pines along the ridge
+  for(let i=0;i<7;i++){
+    const t = -H.half + 6 + i*(H.half*2 - 12)/6 + rnd(-1.5,1.5), l = rnd(-1.2,1.2), sc = rnd(0.8,1.25);
+    const top = HH - 0.6 + (1 - Math.pow(t/(LEN/2), 2))*4.5*(1 - Math.pow(l/(W/2*0.4), 2)) - 0.4;
+    const tr = new THREE.Group(); tr.position.set(H.mid.x + H.dir.x*t + H.perp.x*l, top, H.mid.z + H.dir.z*t + H.perp.z*l);
+    const trunk = cyl(0.15, 0.22, 1.2, 6, M.trim); trunk.position.y = 0.6; tr.add(trunk);
+    for(let k=0;k<3;k++){ const cone = new THREE.Mesh(new THREE.ConeGeometry(1.25 - k*0.32, 1.5, 7), new THREE.MeshStandardMaterial({ color:0x24493a, roughness:0.95, flatShading:true })); cone.position.y = 1.4 + k*0.75; tr.add(cone); }
+    tr.scale.setScalar(sc); tr.traverse(o=>{ if(o.isMesh) o.castShadow = true; }); scene.add(tr);
+  }
+  addBoxCollider(H.mid.x, H.mid.z, H.hw + 0.4, H.half + 0.4, yaw);
+  for(let t = -H.half; t <= H.half; t += 4) claim(H.mid.x + H.dir.x*t, H.mid.z + H.dir.z*t, H.hw + 2.5);
 })();
 
 /* -------- the station -------- */
@@ -2816,13 +2909,35 @@ const TRAIN = (()=>{
   const maroon = new THREE.MeshStandardMaterial({ color:0x6e1f2c, roughness:0.55 });
   const cream = new THREE.MeshStandardMaterial({ color:0xf1e6c8, roughness:0.6 });
   const wheels = [], rods = [];
-  function wheel(r, mat){
+  const steel = new THREE.MeshStandardMaterial({ color:0x6d7075, metalness:0.6, roughness:0.4 });
+  const blurTex = canvasTex(128, 128, (ctx, w)=>{
+    const c = w/2, g = ctx.createRadialGradient(c, c, 0, c, c, c);
+    g.addColorStop(0, 'rgba(212,162,76,1)'); g.addColorStop(0.2, 'rgba(212,162,76,1)'); g.addColorStop(0.24, 'rgba(120,20,22,0.95)');
+    g.addColorStop(0.8, 'rgba(150,32,34,0.85)'); g.addColorStop(0.86, 'rgba(60,60,64,1)'); g.addColorStop(1, 'rgba(40,40,44,1)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(c, c, c, 0, Math.PI*2); ctx.fill();
+  });
+  blurTex.wrapS = blurTex.wrapT = THREE.ClampToEdgeWrapping;
+  const blurMat = new THREE.MeshStandardMaterial({ map:blurTex, roughness:0.6, transparent:true, polygonOffset:true, polygonOffsetFactor:-2, polygonOffsetUnits:-4 });
+  function wheel(r, mat, spoked){
     const w = new THREE.Group();
-    const tire = cyl(r, r, 0.14, 20, mat); tire.rotation.z = Math.PI/2; w.add(tire);
-    const hub = cyl(r*0.25, r*0.25, 0.18, 10, brass); hub.rotation.z = Math.PI/2; w.add(hub);
-    for(let k=0;k<4;k++){ const sp = box(0.16, r*1.8, 0.05, mat); sp.rotation.x = k*Math.PI/4; w.add(sp); }
-    const crank = box(0.06, 0.12, 0.12, brass); crank.position.set(0, r*0.55, 0); w.add(crank);
-    wheels.push({ w, r }); return w;
+    // tyre with a steel rim; solid disc faces sit well inside the rim so nothing overlaps
+    const rim = cyl(r, r, 0.16, 24, steel); rim.rotation.z = Math.PI/2; w.add(rim);
+    const disc = cyl(r*0.86, r*0.86, 0.2, 24, mat); disc.rotation.z = Math.PI/2; w.add(disc);
+    const hub = cyl(r*0.2, r*0.2, 0.28, 12, brass); hub.rotation.z = Math.PI/2; w.add(hub);
+    const entry = { w, r };
+    if(spoked){
+      // on a spoked driver the disc becomes a dark centre with raised spokes; at speed they swap for a blur disc
+      disc.material = black;
+      const spokes = new THREE.Group();
+      for(let k=0;k<6;k++){ const sp = box(0.24, r*1.62, 0.08, mat); sp.rotation.x = k*Math.PI/6; spokes.add(sp); }
+      const crank = box(0.3, 0.16, 0.16, brass); crank.position.set(0, r*0.55, 0); spokes.add(crank);
+      w.add(spokes);
+      const blur = new THREE.Group();
+      for(const sx of [-1, 1]){ const d = new THREE.Mesh(new THREE.CircleGeometry(r*0.9, 28), blurMat); d.rotation.y = sx*Math.PI/2; d.position.x = sx*0.13; blur.add(d); }
+      blur.visible = false; w.add(blur);
+      entry.spokes = spokes; entry.blur = blur;
+    }
+    wheels.push(entry); return w;
   }
   // locomotive (front = +z)
   const loco = new THREE.Group();
@@ -2849,7 +2964,7 @@ const TRAIN = (()=>{
   const lampGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, color:0xfff0c0, transparent:true, opacity:0.9, depthWrite:false, blending:THREE.AdditiveBlending, fog:false }));
   lampGlow.scale.setScalar(2.4); lampGlow.position.set(0, 3.0, 4.6); loco.add(lampGlow);
   const drivers = [];
-  for(const z of [-1.5, 0.0, 1.5]) for(const sx of [-1,1]){ const w = wheel(0.72, red); w.position.set(sx*0.98, 0.72, z); loco.add(w); drivers.push(w); }
+  for(const z of [-1.5, 0.0, 1.5]) for(const sx of [-1,1]){ const w = wheel(0.72, red, true); w.position.set(sx*0.98, 0.72, z); loco.add(w); drivers.push(w); }
   for(const z of [3.0, 3.65]) for(const sx of [-1,1]){ const w = wheel(0.38, red); w.position.set(sx*0.92, 0.38, z); loco.add(w); }
   for(const sx of [-1,1]){ const cylB = cyl(0.3,0.3,1.0,12,black); cylB.rotation.x = Math.PI/2; cylB.position.set(sx*1.05, 1.15, 2.6); loco.add(cylB);
     const rod = dyn(box(0.08, 0.1, 3.2, brass)); rod.position.set(sx*1.12, 0.72, 0); loco.add(rod); rods.push(rod); }
@@ -2905,7 +3020,7 @@ const TRAIN = (()=>{
 /* -------- train state, schedule and travel -------- */
 const TRAIN_EVERY_MS = 10*60*1000;
 const TS = {
-  front: 0, v: 0, state:'run', dwell: 0, stopReq: false, stopFor: null, nextStop: performance.now() + TRAIN_EVERY_MS,
+  front: 0, v: 0, state:'cave', dwell: 0, stopReq: false, stopFor: null, nextStop: performance.now() + TRAIN_EVERY_MS, toCave: false,
   invited: false, aboard: false, onPlatform: false, departedDist: 0, distAcc: 0, chuffAcc: 0, clackAcc: 0,
   whistleT: 6, lastFrontAtStation: -1, ticket: null, stoppedAt: 0, prompt: null, decision: null
 };
@@ -2914,8 +3029,15 @@ const CRUISE = 7.2, GALLERY_V = 3.2, ACC = 1.1;
 // the reference point is the passenger coach: it stops right at the station centre
 const refS = ()=> TS.front - passengerOff;
 const stopDist = ()=> { let d = (RAIL.sStation - refS()) % RAIL.L; if(d < 0) d += RAIL.L; return d; };
-TS.front = RAIL.sStation + passengerOff + RAIL.L*0.42;
-if(/[?&]train\b/.test(location.search)) TS.nextStop = performance.now() + 4000;
+// parked with its nose 2 m short of the far portal, so the whole train is inside the tunnel
+const PARK_FRONT = RAIL.cave[1] - 2.0;
+const caveDist = ()=> { let d = (PARK_FRONT - TS.front) % RAIL.L; if(d < 0) d += RAIL.L; return d; };
+// time needed to steam out of the cave and reach the platform
+const CAVE_LEAD_MS = ((((RAIL.sStation + passengerOff - PARK_FRONT) % RAIL.L) + RAIL.L) % RAIL.L / 6.2 + 6) * 1000;
+TS.front = PARK_FRONT;
+if(/[?&]train\b/.test(location.search)) TS.nextStop = performance.now() + CAVE_LEAD_MS + 2000;
+function setTrainVisible(v){ TRAIN.cars.forEach(c=>{ c.obj.visible = v && !(c.passenger && mode === 'train'); }); }
+placeTrain(); TRAIN.cars.forEach(c=>{ c.obj.visible = false; });   // asleep in the cave at first
 function galleryAhead(){ const [g0,g1] = RAIL.gallery; let d = (g0 - TS.front) % RAIL.L; if(d < 0) d += RAIL.L; const inside = (()=>{ const s = ((TS.front - TRAIN.totalLen) % RAIL.L + RAIL.L) % RAIL.L; const f = ((TS.front % RAIL.L) + RAIL.L) % RAIL.L; return (f >= g0 && f <= g1 + TRAIN.totalLen) || (s >= g0 && s <= g1); })(); return { d, inside }; }
 
 function placeTrain(){
@@ -2928,8 +3050,13 @@ function placeTrain(){
 }
 function updateTrain(dt, t){
   const now = performance.now();
-  // schedule a stop roughly every ten minutes
-  if(!TS.stopReq && TS.state === 'run' && now >= TS.nextStop - 70000){ TS.stopReq = true; TS.stopFor = 'schedule'; TS.invited = false; }
+  // off duty: wait in the cave, then steam out in time to reach the platform on schedule
+  if(TS.state === 'cave'){
+    if(now >= TS.nextStop - CAVE_LEAD_MS){
+      TS.state = 'run'; TS.stopReq = true; TS.stopFor = 'schedule'; TS.invited = false; TS.departedDist = 0;
+      setTrainVisible(true); placeTrain(); trainSound.whistle(2); TS.whistleT = 9;
+    } else { trainSound.update(); updateTrainSmoke(dt); return; }
+  }
   if(TS.aboard && !TS.stopReq && TS.departedDist > 80){ TS.stopReq = true; TS.stopFor = 'dropoff'; }
   // invitation as the train approaches
   const approaching = TS.stopReq && TS.stopFor === 'schedule' && (TS.state === 'run' || TS.state === 'brake') && stopDist() < 240;
@@ -2939,18 +3066,20 @@ function updateTrain(dt, t){
   const ga = galleryAhead();
   if(ga.inside || ga.d < (TS.v*TS.v - GALLERY_V*GALLERY_V)/(2*ACC) + 4) target = GALLERY_V;
   if(TS.state === 'run'){
-    if(TS.stopReq){
-      const d = stopDist();
-      if(d < (TS.v*TS.v)/(2*0.85) + 0.6 && d < 160){ TS.state = 'brake'; TS.brakeA = Math.max(0.2, (TS.v*TS.v)/(2*Math.max(d,0.5))); trainSound.brakes(); }
+    if(TS.stopReq || TS.toCave){
+      const d = TS.stopReq ? stopDist() : caveDist();
+      if(d < (TS.v*TS.v)/(2*0.85) + 0.6 && d < 160){ TS.state = 'brake'; TS.brakeTo = TS.stopReq ? 'station' : 'cave'; TS.brakeA = Math.max(0.2, (TS.v*TS.v)/(2*Math.max(d,0.5))); if(TS.brakeTo === 'station') trainSound.brakes(); }
     }
     TS.v += Math.sign(target - TS.v) * Math.min(Math.abs(target - TS.v), ACC*dt);
   } else if(TS.state === 'brake'){
-    const d = stopDist();
-    if(d > RAIL.L/2){ TS.v = 0; arriveAtStation(); }                         // crept a hair past the mark: call it stopped
+    const toCave = TS.brakeTo === 'cave', d = toCave ? caveDist() : stopDist();
+    const stopHere = ()=> toCave ? parkInCave() : arriveAtStation();
+    if(d > RAIL.L/2){ TS.v = 0; stopHere(); }                                 // crept a hair past the mark: call it stopped
     else {
       TS.v = Math.max(0.25, Math.min(TS.v, Math.sqrt(2*TS.brakeA*d)));
-      if(d < 0.06 || TS.v*dt >= d){ TS.front += d; TS.v = 0; arriveAtStation(); }
+      if(d < 0.06 || TS.v*dt >= d){ TS.front += d; TS.v = 0; stopHere(); }
     }
+    if(TS.state === 'cave') return;
   } else if(TS.state === 'dwell'){
     TS.v = 0; TS.dwell -= dt;
     const waited = (now - TS.stoppedAt)/1000;
@@ -2966,7 +3095,11 @@ function updateTrain(dt, t){
   if(TS.front > RAIL.L*4) TS.front -= RAIL.L*2;
   placeTrain();
   // wheels and rods
-  TRAIN.wheels.forEach(w=>{ w.w.rotation.x += dsMove / w.r; });
+  TRAIN.wheels.forEach(w=>{
+    const turn = dsMove / w.r; w.w.rotation.x += turn;
+    // spokes strobe once they turn more than ~1/12 of a revolution per frame: show the blur disc instead
+    if(w.spokes){ const fast = turn > 0.42; w.spokes.visible = !fast; w.blur.visible = fast; }
+  });
   const ang = TRAIN.drivers[0].rotation.x;
   TRAIN.rods.forEach((r, i)=>{ const ph = ang + (i ? Math.PI/2 : 0); r.position.y = 0.72 + Math.cos(ph)*0.4; r.position.z = Math.sin(ph)*0.4; });
   // sounds & smoke
@@ -3000,7 +3133,12 @@ function arriveAtStation(){
 function departStation(){
   TS.lastStopScheduled = false;
   if(TS.prompt === 'invite'){ trainDialogEl.classList.remove('show'); TS.prompt = null; }
+  TS.toCave = !TS.aboard;                         // duty done unless a passenger is riding the round trip
   TS.state = 'run'; TS.departedDist = 0; trainSound.whistle(2);
+}
+function parkInCave(){
+  TS.state = 'cave'; TS.v = 0; TS.toCave = false; TS.front = PARK_FRONT;
+  placeTrain(); setTrainVisible(false);
 }
 
 /* -------- smoke from the stack -------- */
@@ -4481,7 +4619,7 @@ function setMode(next){
   const rail = mode==='platform' || mode==='train';
   document.body.classList.toggle('rail-mode', rail);
   document.body.classList.toggle('train-mode', mode==='train');
-  if(typeof TRAIN !== 'undefined') TRAIN.passenger.obj.visible = mode !== 'train';
+  if(typeof TRAIN !== 'undefined') setTrainVisible(TS.state !== 'cave');
   if(panelOpen && mode!=='orbit'){ currentId = null; panelOpen = false; panel.classList.remove('open'); updateCompassUI(); }
   if(mode === 'ride'){
     modeToggleBtn.textContent = '🖱️ Free Look';
@@ -4575,6 +4713,7 @@ function drawMinimapBase(){
   for(let i=0;i<=RAIL.N;i+=6){ const p = RAIL.pts[Math.min(i,RAIL.N)]; const [x,y] = W(p.x,p.z); i?c.lineTo(x,y):c.moveTo(x,y); } c.closePath(); c.stroke();
   c.strokeStyle = '#c9b48a'; c.lineWidth = 0.8*k; c.setLineDash([1.2*k, 1.2*k]); c.stroke(); c.setLineDash([]);
   { const a = STATION.toWorld(-15,0,STATION.P0+STATION.PW/2), b = STATION.toWorld(15,0,STATION.P0+STATION.PW/2); c.strokeStyle = '#d8cdb0'; c.lineWidth = STATION.PW*k; c.beginPath(); c.moveTo(...W(a.x,a.z)); c.lineTo(...W(b.x,b.z)); c.stroke(); }
+  { const H = RAIL.HILL; c.save(); c.translate(...W(H.mid.x, H.mid.z)); c.rotate(-Math.atan2(H.dir.x, H.dir.z)); c.fillStyle = '#7d7466'; c.fillRect(-H.hw*k, -H.half*k, 2*H.hw*k, 2*H.half*k); c.restore(); }
   c.fillStyle = '#8a5a3a'; COTTAGES.forEach(h=>{ const p = polar(h.a,h.r); c.save(); c.translate(...W(p.x,p.z)); c.rotate(-h.a*D2R); c.fillRect(-2.1*k,-1.8*k,4.2*k,3.6*k); c.restore(); });
   [[FARM_MILL,2.4],[TOWER,1.6],[CAMPFIRE,1.0]].forEach(([p,r])=>{ c.fillStyle = p===CAMPFIRE ? '#ff9a40' : '#d8cdb0'; c.beginPath(); c.arc(...W(p.x,p.z), r*k, 0, Math.PI*2); c.fill(); });
 }
