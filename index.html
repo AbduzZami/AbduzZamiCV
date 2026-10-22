@@ -3203,7 +3203,7 @@ const TRAIN = (()=>{
 })();
 
 /* -------- train state, schedule and travel -------- */
-const TRAIN_EVERY_MS = 10*60*1000;
+const TRAIN_EVERY_MS = 2.5*60*1000;
 const TS = {
   front: 0, v: 0, state:'cave', dwell: 0, stopReq: false, stopFor: null, nextStop: performance.now() + TRAIN_EVERY_MS, toCave: false,
   invited: false, aboard: false, onPlatform: false, departedDist: 0, distAcc: 0, chuffAcc: 0, clackAcc: 0,
@@ -3305,7 +3305,7 @@ function arriveAtStation(){
   TS.state = 'dwell'; TS.stoppedAt = performance.now(); TS.departedDist = 0; trainSound.hiss();
   const forSchedule = TS.stopFor === 'schedule'; TS.lastStopScheduled = forSchedule;
   TS.stopReq = false;
-  if(forSchedule){ TS.nextStop = performance.now() + TRAIN_EVERY_MS; }
+  if(forSchedule){ TS.nextStop = Math.max(TS.nextStop + TRAIN_EVERY_MS, performance.now() + 30000); }   // keep to the timetable, don't drift
   if(TS.aboard){
     TS.dwell = 9999;
     setTimeout(()=> showTrainPrompt('arrive'), 900);
@@ -3323,6 +3323,8 @@ function departStation(){
 }
 function parkInCave(){
   TS.state = 'cave'; TS.v = 0; TS.toCave = false; TS.front = PARK_FRONT;
+  // after a long passenger round trip the next slot can already be due: rest at least 20 s before heading out again
+  TS.nextStop = Math.max(TS.nextStop, performance.now() + CAVE_LEAD_MS + 20000);
   placeTrain(); setTrainVisible(false);
 }
 
