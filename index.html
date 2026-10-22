@@ -1012,7 +1012,7 @@ const auroraMats = [];
 const R = 24;              // radius of the building ring
 const PLAZA_R = 12;
 const RING_R = 17.5, RING_W = 2.6;
-const BIKE_LIMIT = 50;
+const WORLD_EDGE = 175;     // beyond this the land fades into haze; the sea and the hills close the rest
 
 const ground = new THREE.Mesh(new THREE.CircleGeometry(260, 72), new THREE.MeshStandardMaterial({ color:0xffffff, map:grassTex, roughness:1 }));
 ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
@@ -2040,6 +2040,10 @@ function strut(parent, a, b, t, mat){
     }
   };
   peak(338, 98, 36, 62, 0.3);
+  // the cliff and its peaks are solid
+  [[338,98,36],[321,108,28],[356,110,30],[328,84,15],[349,85,14]].forEach(([deg,r,rad])=>{ const p = polar(deg, r); addCircleCollider(p.x, p.z, rad*0.86); });
+  addBoxCollider(MTN_DIR.x*69.7, MTN_DIR.z*69.7, 11.4, 7.4, MTN_A);
+  addCircleCollider(POOL.x, POOL.z, POOL.r - 0.4);
   peak(321, 108, 28, 46, 0.26);
   peak(356, 110, 30, 50, 0.27);
   peak(328, 84, 15, 23, 0);
@@ -2691,6 +2695,7 @@ const SEA = (()=>{
 })();
 
 /* -------- distant hills & mountains -------- */
+const DISTANT_HILLS = [];
 (()=>{
   const hillMat = new THREE.MeshStandardMaterial({ color:0x355a40, roughness:1, flatShading:true });
   const mtnMat = new THREE.MeshStandardMaterial({ color:0x3c4a62, roughness:1, flatShading:true });
@@ -2700,12 +2705,14 @@ const SEA = (()=>{
     if(Math.hypot(p.x, p.z) > SEA.coast(Math.atan2(p.x,p.z)/D2R) - 14) continue;          // no hills in the sea
     const hill = new THREE.Mesh(new THREE.IcosahedronGeometry(1,1), hillMat);
     hill.scale.set(rnd(12,22), rnd(5,11), rnd(12,22)); hill.position.set(p.x, -1, p.z); hill.rotation.y = rnd(0,3); scene.add(hill);
+    DISTANT_HILLS.push(hill);
   }
   for(let i=0;i<26;i++){
     const p = polar(i/26*360 + rnd(-5,5), rnd(150,185));
     if(Math.hypot(p.x, p.z) > SEA.coast(Math.atan2(p.x,p.z)/D2R) - 30) continue;          // the south side opens to the sea
     const m = new THREE.Mesh(new THREE.ConeGeometry(rnd(22,38), rnd(26,52), 6), mtnMat);
     m.position.set(p.x, 8, p.z); m.rotation.y = rnd(0,3); scene.add(m);
+    addCircleCollider(p.x, p.z, m.geometry.parameters.radius*0.62);       // the slope at ground level, roughly
   }
 })();
 
@@ -2769,16 +2776,12 @@ const RAIL = (()=>{
   const S = polar(208, 57), Tst = new THREE.Vector3(Math.cos(208*D2R), 0, -Math.sin(208*D2R));
   const G = l => new THREE.Vector3(MTN_DIR.x*64.4 + MTN_SIDE.x*l, 10.05, MTN_DIR.z*64.4 + MTN_SIDE.z*l);
   const P = (deg, r, y) => { const p = polar(deg, r); return new THREE.Vector3(p.x, Math.max(0.35, y), p.z); };
-  // the cave: a straight tunnel along the chord from 240° to 282°
-  const A0 = polar(240, 58.8), A1 = polar(282, 58.8);
-  const HILL = { mid:new THREE.Vector3((A0.x+A1.x)/2, 0, (A0.z+A1.z)/2), dir:new THREE.Vector3(A1.x-A0.x, 0, A1.z-A0.z).normalize(), half:Math.hypot(A1.x-A0.x, A1.z-A0.z)/2, hw:6.6, y0:0.45, y1:3.3 };
-  HILL.perp = new THREE.Vector3(-HILL.dir.z, 0, HILL.dir.x);
-  const C = t => { const k = (t + HILL.half)/(2*HILL.half); return new THREE.Vector3(HILL.mid.x + HILL.dir.x*t, HILL.y0 + (HILL.y1-HILL.y0)*k, HILL.mid.z + HILL.dir.z*t); };
   const st = (k) => new THREE.Vector3(S.x + Tst.x*k, 0.35, S.z + Tst.z*k);
+  // the main loop: station → past the junction → up the viaduct → behind the waterfall → round the village
   const ctrl = [
     st(-16), st(-8), st(0), st(8), st(16),
-    C(-HILL.half), C(-HILL.half*2/3), C(-HILL.half/3), C(0), C(HILL.half/3), C(HILL.half*2/3), C(HILL.half),
-    P(292,59.4,5.0), P(304,60.4,7.2), P(316,62.6,9.3),
+    P(234,57.7,0.35), P(246,58.2,0.35), P(256,58.5,0.35), P(266,58.7,0.45), P(277,59,1.6),
+    P(290,59.3,4.3), P(304,60.4,7.2), P(316,62.6,9.3),
     G(-17), G(-11), G(-5.5), G(0), G(5.5), G(11), G(17),
     P(4,62.8,9.4), P(17,60.8,8.4), P(32,59.6,7.2), P(48,59,6.0), P(64,58.6,4.9), P(80,58.5,3.9), P(96,58.5,3.0),
     P(112,58.5,2.4), P(126,58.5,2.2), P(140,58,1.5), P(155,57.6,0.75), P(169,57.5,0.35)
@@ -2794,33 +2797,68 @@ const RAIL = (()=>{
   }
   function tangent(s){ const a = at(s-0.6), b = at(s+0.6); return b.sub(a).normalize(); }
   function inner(s){ const t = tangent(s); const n = new THREE.Vector3(-t.z, 0, t.x).normalize(); const p = at(s); if(n.x*(-p.x) + n.z*(-p.z) < 0) n.negate(); return n; }
+  const nearestS = (x, z)=>{ let best = 0, bd = Infinity; for(let i=0;i<N;i++){ const d = Math.hypot(pts[i].x-x, pts[i].z-z); if(d < bd){ bd = d; best = i*ds; } } return best; };
   // locate the station and the gallery along the loop
-  let sStation = 0, bd = Infinity;
-  for(let i=0;i<N;i++){ const d = Math.hypot(pts[i].x-S.x, pts[i].z-S.z); if(d < bd){ bd = d; sStation = i*ds; } }
+  const sStation = nearestS(S.x, S.z);
   const inCliff = p => { const dep = p.x*MTN_DIR.x + p.z*MTN_DIR.z, lat = p.x*MTN_SIDE.x + p.z*MTN_SIDE.z; return dep > 60 && Math.abs(lat) < 11.6; };
   let g0 = null, g1 = null;
   for(let i=0;i<N;i++){ if(inCliff(pts[i])){ if(g0===null) g0 = i*ds; g1 = i*ds; } }
+
+  // ---- the cave siding: a spur that leaves the loop at a set of points (the switch) and runs into a hill ----
+  // It leaves the junction heading back toward the station and curves away from the village, so the train
+  // reverses in (to sleep facing out) and steams straight out onto the loop when it is time to work.
+  const SW = polar(254, 58.4), sSw = nearestS(SW.x, SW.z);
+  const P0 = at(sSw), T0 = tangent(sSw), IN0 = inner(sSw);
+  let psi = Math.atan2(-T0.x, -T0.z);
+  const turnSign = Math.sign(wrapAngle(Math.atan2(-IN0.x, -IN0.z) - psi)) || 1;
+  const SDS = 0.25, R_ = 22, CL = 10, TURN = 84*D2R, TUN = 47;
+  const arcLen = Math.max(0, (TURN - CL/R_)*R_);
+  const LS = CL + arcLen + CL + 3 + TUN;
+  const kappa = d => d < CL ? d/CL/R_ : d < CL + arcLen ? 1/R_ : d < 2*CL + arcLen ? (2*CL + arcLen - d)/CL/R_ : 0;
+  const spts = [P0.clone()];
+  { let x = P0.x, z = P0.z; for(let d=SDS; d<=LS+1e-6; d+=SDS){ psi += turnSign*kappa(d - SDS/2)*SDS; x += Math.sin(psi)*SDS; z += Math.cos(psi)*SDS; spts.push(new THREE.Vector3(x, P0.y, z)); } }
+  const SN = spts.length - 1, Ls = SN*SDS;
+  function spurAt(d){
+    d = Math.max(0, Math.min(Ls, d));
+    const f = d/SDS, i = Math.min(SN-1, Math.floor(f)), k = f - i, a = spts[i], b = spts[i+1];
+    return new THREE.Vector3(a.x+(b.x-a.x)*k, a.y+(b.y-a.y)*k, a.z+(b.z-a.z)*k);
+  }
+  // route coordinate x used by the train: x ≥ 0 is the loop (x = 0 at the switch, running forward),
+  // x < 0 is the spur, −x metres back from the switch toward the buffer stop
+  const routeAt = x => x >= 0 ? at(sSw + x) : spurAt(-x);
+  // the cave hill wraps the straight end of the spur
+  const hA = spurAt(Ls - TUN - 1.5), hB = spurAt(Ls + 0.5);
+  const HILL = { mid:new THREE.Vector3((hA.x+hB.x)/2, 0, (hA.z+hB.z)/2), dir:new THREE.Vector3(hB.x-hA.x, 0, hB.z-hA.z).normalize(),
+    half:Math.hypot(hB.x-hA.x, hB.z-hA.z)/2, hw:6.6, y0:P0.y, y1:P0.y };
+  HILL.perp = new THREE.Vector3(-HILL.dir.z, 0, HILL.dir.x);
   const inHill = (p, m=0) => { const dx = p.x-HILL.mid.x, dz = p.z-HILL.mid.z; return Math.abs(dx*HILL.dir.x + dz*HILL.dir.z) < HILL.half + m && Math.abs(dx*HILL.perp.x + dz*HILL.perp.z) < HILL.hw + m; };
-  let h0 = null, h1 = null;
-  for(let i=0;i<N;i++){ if(inHill(pts[i], -0.3)){ if(h0===null) h0 = i*ds; h1 = i*ds; } }
-  return { curve, L, ds, N, pts, at, tangent, inner, S, Tst, sStation, gallery:[g0, g1], inCliff, HILL, inHill, cave:[h0, h1] };
+  const spur = { pts:spts, N:SN, ds:SDS, L:Ls, at:spurAt, portalD:Ls - TUN - 1.5, turnSign };
+  return { curve, L, ds, N, pts, at, tangent, inner, S, Tst, sStation, gallery:[g0, g1], inCliff, HILL, inHill, sSw, spur, routeAt };
 })();
 function nearTrack(x, z, m){
   const lim = (1.9 + m)**2;
   for(let i=0;i<RAIL.N;i+=4){ const p = RAIL.pts[i]; const dx = x-p.x, dz = z-p.z; if(dx*dx+dz*dz < lim) return true; }
+  for(let i=0;i<RAIL.spur.N;i+=4){ const p = RAIL.spur.pts[i]; const dx = x-p.x, dz = z-p.z; if(dx*dx+dz*dz < lim) return true; }
   return false;
 }
 for(let i=0;i<RAIL.N;i+=8){ const p = RAIL.pts[i]; claim(p.x, p.z, 2.6); }
+for(let i=0;i<RAIL.spur.N;i+=8){ const p = RAIL.spur.pts[i]; claim(p.x, p.z, 2.6); }
 
-/* -------- track: deck/embankment, sleepers, rails, piers -------- */
+const BLADE_LEN = 5.5;
+/* -------- track: deck/embankment, sleepers, rails, piers, and the junction -------- */
+const SWITCH = { k:1, target:1, lever:null, blades:[], disc:null, lamp:null, lampMat:null };   // k: 0 = main line, 1 = to the cave
 (()=>{
-  const step = 1.0, M_ = Math.round(RAIL.L/step), up = new THREE.Vector3(0,1,0);
+  const up = new THREE.Vector3(0,1,0);
   const ballastC = new THREE.Color(0x6e665a), stoneC = new THREE.Color(0xa59c8c), tmpC = new THREE.Color();
-  function sweep(sectionFn, mat, colorFn){
+  const LOOP = { L:RAIL.L, at:s=>RAIL.at(s), tan:s=>RAIL.tangent(s), closed:true };
+  const spurTan = d => { const a = RAIL.spur.at(d-0.6), b = RAIL.spur.at(d+0.6); return b.sub(a).normalize(); };
+  const SPUR = { L:RAIL.spur.L, at:d=>RAIL.spur.at(d), tan:spurTan, closed:false };
+  function sweep(sectionFn, mat, colorFn, path=LOOP, from=0, to=path.L, step=1.0){
     const pos = [], col = [], idx = [];
+    const M_ = Math.max(1, Math.round((to-from)/step)), st = (to-from)/M_;
     let K = 0;
     for(let i=0;i<=M_;i++){
-      const s = i*step, p = RAIL.at(s), t = RAIL.tangent(s), n = new THREE.Vector3(t.z, 0, -t.x).normalize();
+      const s = from + i*st, p = path.at(s), t = path.tan(s), n = new THREE.Vector3(t.z, 0, -t.x).normalize();
       const sec = sectionFn(p, s); K = sec.length;
       if(colorFn) colorFn(p, tmpC);
       for(const [lx, ly] of sec){ pos.push(p.x + n.x*lx, p.y + ly, p.z + n.z*lx); if(colorFn) col.push(tmpC.r, tmpC.g, tmpC.b); }
@@ -2834,26 +2872,45 @@ for(let i=0;i<RAIL.N;i+=8){ const p = RAIL.pts[i]; claim(p.x, p.z, 2.6); }
   }
   const elev = p => THREE.MathUtils.smoothstep(p.y, 0.9, 1.5);
   // deck / embankment cross-section (relative to rail top)
-  sweep((p)=>{
+  const deckSec = (p)=>{
     const e = elev(p), top = -0.27, par = 0.55*e;
     const bot = e > 0.5 ? -1.0 : -p.y - 0.03, wb = 1.85 + 0.5*(1-e);
     return [[wb,bot],[1.85,top+par],[1.65,top+par],[1.65,top],[-1.65,top],[-1.65,top+par],[-1.85,top+par],[-wb,bot]];
-  }, new THREE.MeshStandardMaterial({ vertexColors:true, roughness:1, flatShading:true, side:THREE.DoubleSide }),
-  (p, c)=> c.copy(ballastC).lerp(stoneC, elev(p)));
+  };
+  const deckCol = (p, c)=> c.copy(ballastC).lerp(stoneC, elev(p));
+  sweep(deckSec, new THREE.MeshStandardMaterial({ vertexColors:true, roughness:1, flatShading:true, side:THREE.DoubleSide }), deckCol);
+  // the siding's ballast sits a hair behind the main line's where the two overlap at the junction
+  sweep(deckSec, new THREE.MeshStandardMaterial({ vertexColors:true, roughness:1, flatShading:true, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:2, polygonOffsetUnits:4 }), deckCol, SPUR, 0, RAIL.spur.L, 1.0);
   const railMat = new THREE.MeshStandardMaterial({ color:0x8a8f96, metalness:0.7, roughness:0.35 });
-  for(const off of [-0.72, 0.72]) sweep(()=>[[off-0.05,-0.17],[off-0.05,0],[off+0.05,0],[off+0.05,-0.17]], railMat);
-  // sleepers
-  const n = Math.floor(RAIL.L/0.8), d = new THREE.Object3D();
-  const sl = new THREE.InstancedMesh(new THREE.BoxGeometry(2.5,0.12,0.28), new THREE.MeshStandardMaterial({ color:0x4a3626, roughness:1 }), n);
-  for(let i=0;i<n;i++){
-    const s = i*0.8, p = RAIL.at(s), t = RAIL.tangent(s);
-    d.position.set(p.x, p.y-0.22, p.z); d.rotation.set(0, Math.atan2(t.x, t.z), 0); d.updateMatrix(); sl.setMatrixAt(i, d.matrix);
+  for(const off of [-0.72, 0.72]){
+    sweep(()=>[[off-0.05,-0.17],[off-0.05,0],[off+0.05,0],[off+0.05,-0.17]], railMat);
+    sweep(()=>[[off-0.05,-0.17],[off-0.05,0],[off+0.05,0],[off+0.05,-0.17]], railMat, null, SPUR, BLADE_LEN, RAIL.spur.L, 0.5);
   }
+  // how far the siding has drifted from the main line, d metres back from the switch
+  const sideOff = d => { const a = RAIL.spur.at(d), b = RAIL.at(RAIL.sSw - d); return Math.hypot(a.x-b.x, a.z-b.z); };
+  const outward = RAIL.inner(RAIL.sSw).clone().negate();
+  // sleepers: main line (long timbers through the junction), then the siding once it has its own bed
+  const d = new THREE.Object3D(), sleeperGeo = new THREE.BoxGeometry(2.5,0.12,0.28), sleeperMat = new THREE.MeshStandardMaterial({ color:0x4a3626, roughness:1 });
+  const mats = [];
+  for(let s=0; s<RAIL.L; s+=0.8){
+    const p = RAIL.at(s), t = RAIL.tangent(s);
+    let back = ((RAIL.sSw - s) % RAIL.L + RAIL.L) % RAIL.L, w = 1, shift = 0;
+    if(back < 22){ const o = sideOff(back); w = (2.5 + o)/2.5; shift = o/2; }
+    d.position.set(p.x + outward.x*shift, p.y-0.22, p.z + outward.z*shift); d.rotation.set(0, Math.atan2(t.x, t.z), 0); d.scale.set(w, 1, 1); d.updateMatrix(); mats.push(d.matrix.clone());
+  }
+  for(let s=0.4; s<RAIL.spur.L; s+=0.8){
+    if(s < 22 && sideOff(s) < 2.6) continue;
+    const p = RAIL.spur.at(s), t = spurTan(s);
+    d.position.set(p.x, p.y-0.22, p.z); d.rotation.set(0, Math.atan2(t.x, t.z), 0); d.scale.set(1,1,1); d.updateMatrix(); mats.push(d.matrix.clone());
+  }
+  const sl = new THREE.InstancedMesh(sleeperGeo, sleeperMat, mats.length);
+  mats.forEach((m, i)=> sl.setMatrixAt(i, m));
   sl.receiveShadow = true; scene.add(sl);
+  d.scale.set(1,1,1);
   // viaduct piers with arched heads
   const piers = [];
   for(let s=0; s<RAIL.L; s+=6.5){
-    const p = RAIL.at(s); if(p.y < 1.6 || RAIL.inCliff(p) || RAIL.inHill(p, 1) || nearRiver(p.x, p.z, 0.8)) continue;
+    const p = RAIL.at(s); if(p.y < 1.6 || RAIL.inCliff(p) || nearRiver(p.x, p.z, 0.8)) continue;
     piers.push([p, RAIL.tangent(s)]);
   }
   const pierGeo = new THREE.BoxGeometry(1,1,1); pierGeo.translate(0,0.5,0);
@@ -2867,7 +2924,9 @@ for(let i=0;i<RAIL.N;i+=8){ const p = RAIL.pts[i]; claim(p.x, p.z, 2.6); }
   });
   d.scale.set(1,1,1);
   [pm, capM].forEach(m=>{ m.castShadow = true; m.receiveShadow = true; scene.add(m); });
-  // tunnel portals where the track enters and leaves the cliff, and columns along the gallery front
+  // where the embankment is too high to ride over but too low to ride under, it is a wall
+  for(let s=0; s<RAIL.L; s+=1.6){ const p = RAIL.at(s); if(p.y > 0.7 && p.y < 3.2 && !nearRiver(p.x, p.z, 0.5)) addCircleCollider(p.x, p.z, 1.9); }
+  // tunnel portals where the track enters and leaves the cliff
   const portMat = new THREE.MeshStandardMaterial({ color:0x8d857a, roughness:1, flatShading:true });
   for(const l of [-11.4, 11.4]){
     const c = new THREE.Vector3(MTN_DIR.x*64.4 + MTN_SIDE.x*l, 10.05, MTN_DIR.z*64.4 + MTN_SIDE.z*l);
@@ -2884,14 +2943,80 @@ for(let i=0;i<RAIL.N;i+=8){ const p = RAIL.pts[i]; claim(p.x, p.z, 2.6); }
     b.position.set(MTN_DIR.x*65.8 + MTN_SIDE.x*l, 12.6, MTN_DIR.z*65.8 + MTN_SIDE.z*l); scene.add(b);
     const gl = new THREE.Sprite(LAMP_GLOW); gl.scale.setScalar(1.6); gl.position.copy(b.position); scene.add(gl);
   }
-})();
 
-/* -------- the cave: a rocky hill with a lit tunnel where the train sleeps -------- */
+  // ---- the switch: two moving blades at the junction, and a lever stand with a target disc and lamp ----
+  const P0 = RAIL.at(RAIL.sSw);
+  for(const off of [-0.72, 0.72]){
+    const blade = dyn(box(0.11, 0.15, BLADE_LEN, railMat));
+    scene.add(blade); SWITCH.blades.push({ m:blade, off });
+  }
+  // the lever stand sits beside the track on the village side, just before the blades
+  const IN = RAIL.inner(RAIL.sSw), T = RAIL.tangent(RAIL.sSw);
+  const base = new THREE.Vector3(P0.x + IN.x*2.7 - T.x*1.5, 0, P0.z + IN.z*2.7 - T.z*1.5);
+  const stand = new THREE.Group(); stand.position.copy(base); stand.rotation.y = Math.atan2(T.x, T.z);
+  const plinth = box(0.9, 0.35, 1.4, M.stoneLt); plinth.position.y = 0.17; stand.add(plinth);
+  const frame = box(0.5, 0.45, 0.9, new THREE.MeshStandardMaterial({ color:0x2c3a4a, roughness:0.6, metalness:0.4 })); frame.position.y = 0.55; stand.add(frame);
+  const pivot = dyn(new THREE.Group()); pivot.position.set(0, 0.78, 0); stand.add(pivot);
+  const handle = cyl(0.045, 0.045, 1.35, 8, new THREE.MeshStandardMaterial({ color:0xb8bcc2, metalness:0.7, roughness:0.35 })); handle.position.y = 0.66; pivot.add(handle);
+  const grip = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), new THREE.MeshStandardMaterial({ color:0xc0392b, roughness:0.5 })); grip.position.y = 1.36; pivot.add(grip);
+  const weight = box(0.24, 0.24, 0.24, new THREE.MeshStandardMaterial({ color:0x1b1b1d, roughness:0.6 })); weight.position.y = -0.05; pivot.add(weight);
+  // target post: the disc turns edge-on for the main line and faces the driver when set for the cave
+  const post = cyl(0.06, 0.07, 2.4, 8, new THREE.MeshStandardMaterial({ color:0x2c3a4a, roughness:0.6 })); post.position.set(0.25, 1.2, -0.45); stand.add(post);
+  const disc = dyn(new THREE.Group()); disc.position.set(0.25, 2.25, -0.45); stand.add(disc);
+  const discTex = canvasTex(128, 128, (ctx, w)=>{ ctx.fillStyle = '#c0392b'; ctx.beginPath(); ctx.arc(64,64,62,0,Math.PI*2); ctx.fill(); ctx.fillStyle = '#f6efe0'; ctx.fillRect(14, 54, 100, 20); });
+  for(const sy of [0, Math.PI]){ const f = new THREE.Mesh(new THREE.CircleGeometry(0.34, 20), new THREE.MeshStandardMaterial({ map:discTex, roughness:0.6 })); f.rotation.y = sy; disc.add(f); }
+  const lampMat = new THREE.MeshBasicMaterial({ color:0x6cff8a });
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), lampMat); lamp.position.set(0.25, 2.72, -0.45); stand.add(lamp);
+  const lampGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, color:0x6cff8a, transparent:true, opacity:0.8, depthWrite:false, blending:THREE.AdditiveBlending })); lampGlow.scale.setScalar(1.1); lampGlow.position.copy(lamp.position); stand.add(lampGlow);
+  stand.traverse(o=>{ if(o.isMesh) o.castShadow = true; });
+  scene.add(stand); addCircleCollider(base.x, base.z, 0.8); claim(base.x, base.z, 1.6);
+  // a painted sign: "To the engine cave"
+  const signTex = canvasTex(256, 96, (ctx,w,h)=>{ ctx.fillStyle='#2c3a4a'; ctx.fillRect(0,0,w,h); ctx.strokeStyle='#d4a24c'; ctx.lineWidth=6; ctx.strokeRect(5,5,w-10,h-10); ctx.fillStyle='#f6e2a8'; ctx.font='bold 30px Georgia, serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('ENGINE CAVE', w/2, h/2-12); ctx.font='22px Georgia, serif'; ctx.fillText('⟵ siding', w/2, h/2+20); });
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.5), new THREE.MeshStandardMaterial({ map:signTex, roughness:0.6 }));
+  sign.position.set(-0.3, 1.25, -0.45); stand.add(sign);
+  const signB = sign.clone(); signB.rotation.y = Math.PI; signB.position.z = -0.47; stand.add(signB);
+  Object.assign(SWITCH, { lever:pivot, disc, lampMat, lampGlow });
+  // buffer stop at the dead end of the siding, inside the cave
+  { const e = RAIL.spur.at(RAIL.spur.L - 0.3), t = spurTan(RAIL.spur.L - 1);
+    const bs = new THREE.Group(); bs.position.set(e.x, e.y - 0.25, e.z); bs.rotation.y = Math.atan2(t.x, t.z);
+    const beam = box(2.4, 0.5, 0.35, new THREE.MeshStandardMaterial({ color:0xa3282a, roughness:0.5 })); beam.position.set(0, 1.0, 0); bs.add(beam);
+    for(const sx of [-0.8, 0.8]){ const buf = cyl(0.14, 0.14, 0.4, 10, M.trim); buf.rotation.x = Math.PI/2; buf.position.set(sx, 1.0, -0.35); bs.add(buf);
+      const leg = box(0.18, 1.0, 1.2, M.trim); leg.position.set(sx*1.05, 0.5, 0.35); leg.rotation.x = 0.5; bs.add(leg); }
+    const lamp2 = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), new THREE.MeshBasicMaterial({ color:0xff4a3a })); lamp2.position.set(0, 1.45, 0); bs.add(lamp2);
+    scene.add(bs); }
+  setSwitch(1, true);
+})();
+function setSwitch(k, instant){ SWITCH.target = k; if(instant){ SWITCH.k = k; poseSwitch(); } }
+function poseSwitch(){
+  const k = SWITCH.k, P0 = RAIL.at(RAIL.sSw);
+  // blades hinge at the toe and swing between the main-line and siding heels
+  const Tm = RAIL.tangent(RAIL.sSw - BLADE_LEN/2).negate(), Hm = RAIL.at(RAIL.sSw - BLADE_LEN), Hs = RAIL.spur.at(BLADE_LEN);
+  for(const b of SWITCH.blades){
+    const nm = new THREE.Vector3(Tm.z, 0, -Tm.x).normalize();
+    const toe = new THREE.Vector3(P0.x + nm.x*b.off, P0.y - 0.06, P0.z + nm.z*b.off);
+    const hm = new THREE.Vector3(Hm.x + nm.x*b.off, Hm.y, Hm.z + nm.z*b.off), hs = new THREE.Vector3(Hs.x + nm.x*b.off, Hs.y, Hs.z + nm.z*b.off);
+    const heel = hm.lerp(hs, k); heel.y = P0.y - 0.06;
+    b.m.position.copy(toe).add(heel).multiplyScalar(0.5); b.m.lookAt(heel);
+  }
+  SWITCH.lever.rotation.x = (k - 0.5) * 1.1;
+  SWITCH.disc.rotation.y = (1 - k) * Math.PI/2;
+  const c = k > 0.5 ? 0xffb03a : 0x6cff8a; SWITCH.lampMat.color.setHex(c); SWITCH.lampGlow.material.color.setHex(c);
+}
+function updateSwitch(dt){
+  if(SWITCH.k === SWITCH.target) return;
+  const was = SWITCH.k;
+  SWITCH.k += Math.sign(SWITCH.target - SWITCH.k) * Math.min(Math.abs(SWITCH.target - SWITCH.k), dt/1.1);
+  if(Math.abs(SWITCH.k - SWITCH.target) < 1e-4) SWITCH.k = SWITCH.target;
+  if((was - 0.5)*(SWITCH.k - 0.5) <= 0 && was !== SWITCH.k) trainSound.clunk && trainSound.clunk();
+  poseSwitch();
+}
+
+/* -------- the cave: a rocky hill at the end of the siding, with a lit tunnel where the train sleeps -------- */
 const BIG_HILLS = (()=>{
-  const H = RAIL.HILL, out = new THREE.Vector3(H.perp.x, 0, H.perp.z);
-  if(out.x*H.mid.x + out.z*H.mid.z < 0) out.negate();                       // away from the village
-  const at = (along, outward, r, h)=> ({ x:H.mid.x + H.dir.x*along + out.x*outward, z:H.mid.z + H.dir.z*along + out.z*outward, r, h });
-  return [ at(0, 20, 25, 31), at(-15, 18, 13, 17), at(15, 18, 13, 19) ];
+  const H = RAIL.HILL;
+  const at = (along, side, r, h)=> ({ x:H.mid.x + H.dir.x*along + H.perp.x*side, z:H.mid.z + H.dir.z*along + H.perp.z*side, r, h });
+  // the big mountain rises behind the buffer stop, with a shoulder either side of the cave ridge
+  return [ at(H.half + 24, 0, 25, 31), at(H.half - 4, 19, 13, 18), at(H.half - 2, -19, 13, 17) ];   // kept clear of the tunnel bore
 })();
 const inBigHill = (x, z, m=0) => BIG_HILLS.some(b => Math.hypot(x-b.x, z-b.z) < b.r + m);
 (()=>{
@@ -2918,7 +3043,7 @@ const inBigHill = (x, z, m=0) => BIG_HILLS.some(b => Math.hypot(x-b.x, z-b.z) < 
   const hillMat = new THREE.MeshStandardMaterial({ vertexColors:true, roughness:1, flatShading:true });
   const hidden = new THREE.MeshBasicMaterial({ visible:false });
   // BoxGeometry face groups: +x, -x, +y, -y, +z, -z — leave the two ends (along the tunnel) open
-  const hill = new THREE.Mesh(geo, [hillMat, hillMat, hillMat, hidden, hidden, hidden]);
+  const hill = new THREE.Mesh(geo, [hillMat, hillMat, hillMat, hidden, hillMat, hidden]);   // open only at the portal end
   hill.position.set(H.mid.x, HH/2 - 0.6, H.mid.z); hill.rotation.y = yaw; hill.castShadow = true; hill.receiveShadow = true; scene.add(hill);
   // tunnel lining (seen from inside only)
   const TW = 2.6, TWALL = 3.6, shape = new THREE.Shape();
@@ -2926,8 +3051,9 @@ const inBigHill = (x, z, m=0) => BIG_HILLS.some(b => Math.hypot(x-b.x, z-b.z) < 
   const lining = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth:LEN, bevelEnabled:false, curveSegments:14 }),
     [new THREE.MeshBasicMaterial({ visible:false }), new THREE.MeshStandardMaterial({ color:0x4a433b, roughness:1, side:THREE.BackSide, flatShading:true })]);
   const tun = new THREE.Group(); tun.position.set(H.mid.x, (H.y0 + H.y1)/2 - 0.42, H.mid.z); tun.rotation.order = 'YXZ'; tun.rotation.y = yaw;
-  tun.rotation.x = -Math.atan2(H.y1 - H.y0, H.half*2);
   lining.position.z = -LEN/2; tun.add(lining);
+  const back = new THREE.Mesh(new THREE.ShapeGeometry(shape, 14), new THREE.MeshStandardMaterial({ color:0x3e3832, roughness:1 }));
+  back.position.z = LEN/2 - 0.25; back.rotation.y = Math.PI; tun.add(back);          // the rock face behind the buffer stop
   for(let z = -LEN/2 + 4; z < LEN/2 - 2; z += 6.5){
     for(const sx of [-1, 1]){
       const b = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), M.bulb); b.position.set(sx*(TW-0.15), 3.3, z); tun.add(b);
@@ -2943,7 +3069,7 @@ const inBigHill = (x, z, m=0) => BIG_HILLS.some(b => Math.hypot(x-b.x, z-b.z) < 
     f.holes.push(hole); return f;
   };
   const portalMat = new THREE.MeshStandardMaterial({ color:0x9a9184, roughness:1, side:THREE.DoubleSide });
-  for(const end of [-1, 1]){
+  for(const end of [-1]){
     const t = end*(LEN/2), y = end < 0 ? H.y0 : H.y1;
     const g = new THREE.Group(); g.position.set(H.mid.x + H.dir.x*t, y - 0.42, H.mid.z + H.dir.z*t); g.rotation.y = yaw;
     const f = new THREE.Mesh(new THREE.ShapeGeometry(makeFace(HH - 0.6 - (y - 0.42) + 0.6), 14), portalMat); f.position.z = end*0.05; g.add(f);
@@ -2988,6 +3114,16 @@ const inBigHill = (x, z, m=0) => BIG_HILLS.some(b => Math.hypot(x-b.x, z-b.z) < 
   });
 })();
 
+// distant hills that would sit on the siding or the cave are cleared away; the rest are solid ground
+DISTANT_HILLS.forEach(h=>{
+  const rad = Math.max(h.scale.x, h.scale.z) + 3;
+  let hit = inBigHill(h.position.x, h.position.z, rad - 6) || RAIL.inHill(h.position, rad);
+  for(let i=0; !hit && i<=RAIL.spur.N; i+=8){ const q = RAIL.spur.pts[i]; if(Math.hypot(q.x-h.position.x, q.z-h.position.z) < rad) hit = true; }
+  for(let i=0; !hit && i<=RAIL.N; i+=8){ const q = RAIL.pts[i]; if(Math.hypot(q.x-h.position.x, q.z-h.position.z) < rad) hit = true; }
+  if(hit){ scene.remove(h); return; }
+  addCircleCollider(h.position.x, h.position.z, Math.min(h.scale.x, h.scale.z)*0.92);
+});
+
 /* -------- the station -------- */
 const STATION = (()=>{
   const S = RAIL.at(RAIL.sStation), T = RAIL.tangent(RAIL.sStation), IN = RAIL.inner(RAIL.sStation);
@@ -2997,6 +3133,7 @@ const STATION = (()=>{
   const Z = v => v*zs;
   const PT = 0.95, P0 = 1.65, PW = 4.4;                                     // platform top, edge offset, width
   const plat = box(30, PT, PW, M.stoneLt); plat.position.set(0, PT/2, Z(P0+PW/2)); g.add(plat);
+  { const c = new THREE.Vector3(0, 0, Z(P0+PW/2)).applyAxisAngle(new THREE.Vector3(0,1,0), yaw); addBoxCollider(S.x + c.x, S.z + c.z, 15, PW/2, yaw); }
   const edge = box(30, 0.04, 0.3, new THREE.MeshStandardMaterial({ color:0xe8c547, roughness:0.6 })); edge.position.set(0, PT+0.02, Z(P0+0.35)); g.add(edge);
   const tiles = new THREE.Mesh(new THREE.PlaneGeometry(29.6, PW-0.7), new THREE.MeshStandardMaterial({ color:0xffffff, map:cobbleTex, roughness:0.95 }));
   tiles.rotation.x = -Math.PI/2; tiles.position.set(0, PT+0.012, Z(P0+0.7+(PW-0.7)/2)); g.add(tiles);
@@ -3207,64 +3344,106 @@ const TRAIN_EVERY_MS = 2.5*60*1000;
 const TS = {
   front: 0, v: 0, state:'cave', dwell: 0, stopReq: false, stopFor: null, nextStop: performance.now() + TRAIN_EVERY_MS, toCave: false,
   invited: false, aboard: false, onPlatform: false, departedDist: 0, distAcc: 0, chuffAcc: 0, clackAcc: 0,
-  whistleT: 6, lastFrontAtStation: -1, ticket: null, stoppedAt: 0, prompt: null, decision: null
+  whistleT: 6, lastFrontAtStation: -1, ticket: null, stoppedAt: 0, prompt: null, decision: null, holdT: 0
 };
 const passengerOff = TRAIN.passenger.off;
-const CRUISE = 7.2, GALLERY_V = 3.2, ACC = 1.1;
+const CRUISE = 7.2, EMPTY_CRUISE = 8.8, GALLERY_V = 3.2, ACC = 1.1, SHUNT_V = 4.2;
+// TS.front is a route coordinate: ≥ 0 on the loop measured forward from the switch, < 0 back along the cave siding
+const loopS = x => RAIL.sSw + x;
 // the reference point is the passenger coach: it stops right at the station centre
-const refS = ()=> TS.front - passengerOff;
-const stopDist = ()=> { let d = (RAIL.sStation - refS()) % RAIL.L; if(d < 0) d += RAIL.L; return d; };
-// parked with its nose 2 m short of the far portal, so the whole train is inside the tunnel
-const PARK_FRONT = RAIL.cave[1] - 2.0;
-const caveDist = ()=> { let d = (PARK_FRONT - TS.front) % RAIL.L; if(d < 0) d += RAIL.L; return d; };
-// time needed to steam out of the cave and reach the platform
-const CAVE_LEAD_MS = ((((RAIL.sStation + passengerOff - PARK_FRONT) % RAIL.L) + RAIL.L) % RAIL.L / 6.2 + 6) * 1000;
+const refS = ()=> loopS(TS.front - passengerOff);
+const modL = v => ((v % RAIL.L) + RAIL.L) % RAIL.L;
+const stopDist = ()=> modL(RAIL.sStation - refS());
+// parked with its tail 1.5 m from the buffer stop, nose well inside the tunnel
+const PARK_FRONT = -(RAIL.spur.L - 1.5) + TRAIN.totalLen;
+// to go home the train runs on until its tail is clear of the switch, then reverses into the siding
+const REV_FRONT = TRAIN.totalLen + 6;
+const revDist = ()=> modL(REV_FRONT - TS.front);
+// time needed to steam out of the cave, run a full lap and reach the platform
+const CAVE_RUN = (RAIL.sStation + passengerOff - RAIL.sSw + RAIL.L) - PARK_FRONT;
+const CAVE_LEAD_MS = (CAVE_RUN / 6.4 + 12) * 1000;
 TS.front = PARK_FRONT;
 if(/[?&]train\b/.test(location.search)) TS.nextStop = performance.now() + CAVE_LEAD_MS + 2000;
 function setTrainVisible(v){ TRAIN.cars.forEach(c=>{ c.obj.visible = v && !(c.passenger && mode === 'train'); }); }
 placeTrain(); TRAIN.cars.forEach(c=>{ c.obj.visible = false; });   // asleep in the cave at first
-function galleryAhead(){ const [g0,g1] = RAIL.gallery; let d = (g0 - TS.front) % RAIL.L; if(d < 0) d += RAIL.L; const inside = (()=>{ const s = ((TS.front - TRAIN.totalLen) % RAIL.L + RAIL.L) % RAIL.L; const f = ((TS.front % RAIL.L) + RAIL.L) % RAIL.L; return (f >= g0 && f <= g1 + TRAIN.totalLen) || (s >= g0 && s <= g1); })(); return { d, inside }; }
+function galleryAhead(){
+  const [g0,g1] = RAIL.gallery, f = modL(loopS(TS.front)), s = modL(loopS(TS.front - TRAIN.totalLen));
+  const d = TS.front < 0 ? g0 - loopS(TS.front) : modL(g0 - f);
+  const inside = TS.front >= 0 && ((f >= g0 && f <= g1 + TRAIN.totalLen) || (s >= g0 && s <= g1));
+  return { d, inside };
+}
 
+// the train is solid too: a rider on the track gets nudged aside
+function trainPush(p, rad){
+  if(TS.state === 'cave') return false;
+  let hit = false;
+  for(const c of TRAIN.cars){
+    const o = c.obj.position; if(o.y > 2.2) continue;            // up on the viaduct: ride underneath
+    const dx = p.x - o.x, dz = p.z - o.z;
+    let lz = dx*c.fx + dz*c.fz, lx = dx*c.fz - dz*c.fx;
+    const ez = c.len/2 + rad, ex = 1.35 + rad;
+    if(Math.abs(lz) < ez && Math.abs(lx) < ex){
+      if(ex - Math.abs(lx) < ez - Math.abs(lz)) lx = Math.sign(lx || 1)*ex; else lz = Math.sign(lz || 1)*ez;
+      p.x = o.x + lz*c.fx + lx*c.fz; p.z = o.z + lz*c.fz - lx*c.fx; hit = true;
+    }
+  }
+  return hit;
+}
 function placeTrain(){
   for(const c of TRAIN.cars){
     const sc = TS.front - c.off, half = c.len/2 - 0.9;
-    const a = RAIL.at(sc + half), b = RAIL.at(sc - half);
+    const a = RAIL.routeAt(sc + half), b = RAIL.routeAt(sc - half);
     c.obj.position.set((a.x+b.x)/2, (a.y+b.y)/2, (a.z+b.z)/2);
     c.obj.lookAt(a.x, (a.y+b.y)/2 + (a.y-b.y)/2, a.z);
+    c.fx = a.x - b.x; c.fz = a.z - b.z; const l = Math.hypot(c.fx, c.fz) || 1; c.fx /= l; c.fz /= l;
   }
 }
 function updateTrain(dt, t){
   const now = performance.now();
-  // off duty: wait in the cave, then steam out in time to reach the platform on schedule
+  updateSwitch(dt);
+  // off duty: wait in the cave, then steam out in time to run a lap and reach the platform on schedule
   if(TS.state === 'cave'){
     if(now >= TS.nextStop - CAVE_LEAD_MS){
-      TS.state = 'run'; TS.stopReq = true; TS.stopFor = 'schedule'; TS.invited = false; TS.departedDist = 0;
-      setTrainVisible(true); placeTrain(); trainSound.whistle(2); TS.whistleT = 9;
+      TS.state = 'run'; TS.stopReq = true; TS.stopFor = 'schedule'; TS.invited = false; TS.departedDist = 0; TS.front = PARK_FRONT;
+      setSwitch(1); setTrainVisible(true); placeTrain(); trainSound.whistle(2); TS.whistleT = 9;
     } else { trainSound.update(); updateTrainSmoke(dt); return; }
   }
   if(TS.aboard && !TS.stopReq && TS.departedDist > 80){ TS.stopReq = true; TS.stopFor = 'dropoff'; }
+  // once the whole train is out on the loop, set the points back for the main line
+  if(SWITCH.target === 1 && TS.state !== 'shunt' && TS.state !== 'hold' && TS.v > 0 && TS.front - TRAIN.totalLen > 3) setSwitch(0);
   // invitation as the train approaches
-  const approaching = TS.stopReq && TS.stopFor === 'schedule' && (TS.state === 'run' || TS.state === 'brake') && stopDist() < 240;
+  const approaching = TS.stopReq && TS.stopFor === 'schedule' && (TS.state === 'run' || TS.state === 'brake') && TS.front - passengerOff > 0 && stopDist() < 240;
   const waiting = TS.state === 'dwell' && TS.lastStopScheduled && TS.dwell > 8 && TS.dwell < 100;
   if(!TS.invited && (approaching || waiting) && trainEligible()){ TS.invited = true; inviteToPlatform(); }
-  let target = CRUISE;
+  let target = TS.aboard ? CRUISE : EMPTY_CRUISE;
   const ga = galleryAhead();
   if(ga.inside || ga.d < (TS.v*TS.v - GALLERY_V*GALLERY_V)/(2*ACC) + 4) target = GALLERY_V;
+  if(TS.front < 0) target = Math.min(target, 4.5);                       // easy out of the siding and over the points
   if(TS.state === 'run'){
     if(TS.stopReq || TS.toCave){
-      const d = TS.stopReq ? stopDist() : caveDist();
-      if(d < (TS.v*TS.v)/(2*0.85) + 0.6 && d < 160){ TS.state = 'brake'; TS.brakeTo = TS.stopReq ? 'station' : 'cave'; TS.brakeA = Math.max(0.2, (TS.v*TS.v)/(2*Math.max(d,0.5))); if(TS.brakeTo === 'station') trainSound.brakes(); }
+      const d = TS.stopReq ? (TS.front - passengerOff > 0 ? stopDist() : Infinity) : revDist();
+      if(d < (TS.v*TS.v)/(2*0.85) + 0.6 && d < 160){ TS.state = 'brake'; TS.brakeTo = TS.stopReq ? 'station' : 'rev'; TS.brakeA = Math.max(0.2, (TS.v*TS.v)/(2*Math.max(d,0.5))); if(TS.brakeTo === 'station') trainSound.brakes(); }
     }
     TS.v += Math.sign(target - TS.v) * Math.min(Math.abs(target - TS.v), ACC*dt);
   } else if(TS.state === 'brake'){
-    const toCave = TS.brakeTo === 'cave', d = toCave ? caveDist() : stopDist();
-    const stopHere = ()=> toCave ? parkInCave() : arriveAtStation();
+    const toRev = TS.brakeTo === 'rev', d = toRev ? revDist() : stopDist();
+    const stopHere = ()=> toRev ? holdForPoints() : arriveAtStation();
     if(d > RAIL.L/2){ TS.v = 0; stopHere(); }                                 // crept a hair past the mark: call it stopped
     else {
       TS.v = Math.max(0.25, Math.min(TS.v, Math.sqrt(2*TS.brakeA*d)));
       if(d < 0.06 || TS.v*dt >= d){ TS.front += d; TS.v = 0; stopHere(); }
     }
-    if(TS.state === 'cave') return;
+  } else if(TS.state === 'hold'){
+    // standing clear of the junction while the points swing over to the siding
+    TS.v = 0; TS.holdT -= dt;
+    if(TS.holdT <= 2.2 && SWITCH.target !== 1) setSwitch(1);
+    if(TS.holdT <= 0 && SWITCH.k === 1){ TS.state = 'shunt'; trainSound.whistle(1); }
+  } else if(TS.state === 'shunt'){
+    // backing into the cave, slowing to a crawl at the buffer stop
+    const d = TS.front - PARK_FRONT;
+    const want = Math.min(SHUNT_V, Math.sqrt(2*0.5*Math.max(d, 0)) + 0.2);
+    TS.v = -Math.min(want, Math.abs(TS.v) + ACC*dt);
+    if(-TS.v*dt >= d){ TS.front = PARK_FRONT; TS.v = 0; parkInCave(); return; }
   } else if(TS.state === 'dwell'){
     TS.v = 0; TS.dwell -= dt;
     const waited = (now - TS.stoppedAt)/1000;
@@ -3277,22 +3456,23 @@ function updateTrain(dt, t){
   }
   const dsMove = TS.v*dt;
   TS.front += dsMove; TS.departedDist += dsMove;
-  if(TS.front > RAIL.L*4) TS.front -= RAIL.L*2;
+  if(TS.front - TRAIN.totalLen > RAIL.L) TS.front -= RAIL.L;            // a lap later: same place, whole train on the loop
   placeTrain();
   // wheels and rods
   TRAIN.wheels.forEach(w=>{
     const turn = dsMove / w.r; w.w.rotation.x += turn;
     // spokes strobe once they turn more than ~1/12 of a revolution per frame: show the blur disc instead
-    if(w.spokes){ const fast = turn > 0.42; w.spokes.visible = !fast; w.blur.visible = fast; }
+    if(w.spokes){ const fast = Math.abs(turn) > 0.42; w.spokes.visible = !fast; w.blur.visible = fast; }
   });
   const ang = TRAIN.drivers[0].rotation.x;
   TRAIN.rods.forEach((r, i)=>{ const ph = ang + (i ? Math.PI/2 : 0); r.position.y = 0.72 + Math.cos(ph)*0.4; r.position.z = Math.sin(ph)*0.4; });
   // sounds & smoke
-  TS.chuffAcc += dsMove; TS.clackAcc += dsMove;
+  const av = Math.abs(TS.v), am = Math.abs(dsMove);
+  TS.chuffAcc += am; TS.clackAcc += am;
   const chuffEvery = 1.7;
-  if(TS.v > 0.15 && TS.chuffAcc >= chuffEvery){ TS.chuffAcc = 0; trainSound.chuff(TS.v); puffSmoke(1); }
-  if(TS.v > 0.6 && TS.clackAcc >= 12.5){ TS.clackAcc = 0; trainSound.clack(TS.v); }
-  if(TS.state === 'dwell' && Math.random() < dt*0.8) puffSmoke(0.4);
+  if(av > 0.15 && TS.chuffAcc >= chuffEvery){ TS.chuffAcc = 0; trainSound.chuff(av); puffSmoke(1); }
+  if(av > 0.6 && TS.clackAcc >= 12.5){ TS.clackAcc = 0; trainSound.clack(av); }
+  if((TS.state === 'dwell' || TS.state === 'hold') && Math.random() < dt*0.8) puffSmoke(0.4);
   TS.whistleT -= dt;
   if(TS.v > 1 && TS.whistleT <= 0){ trainSound.whistle(Math.random() < 0.4 ? 2 : 1); TS.whistleT = rand(13, 21); }
   if(TS.v > 1 && ga.d < 26 && ga.d > 24.5 - TS.v*dt*2 && !TS.galleryWhistled){ TS.galleryWhistled = true; trainSound.whistle(2); }
@@ -3312,7 +3492,7 @@ function arriveAtStation(){
   } else if(TS.onPlatform){
     TS.dwell = 9999;
     setTimeout(()=> showTrainPrompt('board'), 1200);
-  } else TS.dwell = 18;
+  } else TS.dwell = 15;
   TS.stopFor = null;
 }
 function departStation(){
@@ -3321,10 +3501,11 @@ function departStation(){
   TS.toCave = !TS.aboard;                         // duty done unless a passenger is riding the round trip
   TS.state = 'run'; TS.departedDist = 0; trainSound.whistle(2);
 }
+function holdForPoints(){ TS.state = 'hold'; TS.v = 0; TS.holdT = 3.2; trainSound.hiss(); }
 function parkInCave(){
   TS.state = 'cave'; TS.v = 0; TS.toCave = false; TS.front = PARK_FRONT;
-  // after a long passenger round trip the next slot can already be due: rest at least 20 s before heading out again
-  TS.nextStop = Math.max(TS.nextStop, performance.now() + CAVE_LEAD_MS + 20000);
+  // after a long passenger round trip the next slot can already be due: rest a little before heading out again
+  TS.nextStop = Math.max(TS.nextStop, performance.now() + CAVE_LEAD_MS + 8000);
   placeTrain(); setTrainVisible(false);
 }
 
@@ -3403,7 +3584,20 @@ const trainSound = (()=>{
       g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.035, t0+0.4); g.gain.linearRampToValueAtTime(0, t0+2.6);
       o.connect(fl); fl.connect(g); g.connect(bus); o.start(t0); o.stop(t0+2.7);
     },
-    hiss(){ const a = ctx(); if(!a) return; noise(a, a.currentTime, 2.4, 'highpass', 3500, 0.5, 0.2, 0.05); }
+    hiss(){ const a = ctx(); if(!a) return; noise(a, a.currentTime, 2.4, 'highpass', 3500, 0.5, 0.2, 0.05); },
+    clunk(){
+      // the points thrown over: a heavy iron clank, heard nearby
+      const a = actx && actx.state === 'running' ? actx : null; if(!a) return;
+      const d = camera.position.distanceTo(RAIL.at(RAIL.sSw)); if(d > 90) return;
+      const g0 = Math.min(1, Math.pow(14/(d+6), 1.3));
+      const t0 = a.currentTime, o = a.createOscillator(), g = a.createGain();
+      o.type = 'triangle'; o.frequency.setValueAtTime(190, t0); o.frequency.exponentialRampToValueAtTime(70, t0+0.25);
+      g.gain.setValueAtTime(0.35*g0, t0); g.gain.exponentialRampToValueAtTime(0.001, t0+0.32);
+      o.connect(g); g.connect(a.destination); o.start(t0); o.stop(t0+0.35);
+      const o2 = a.createOscillator(), g2 = a.createGain(); o2.type = 'square'; o2.frequency.value = 1400;
+      g2.gain.setValueAtTime(0.05*g0, t0); g2.gain.exponentialRampToValueAtTime(0.0005, t0+0.08);
+      o2.connect(g2); g2.connect(a.destination); o2.start(t0); o2.stop(t0+0.1);
+    }
   };
   function tone2(a, t0, f, dur, vol){ const o = a.createOscillator(), g = a.createGain(); o.type = 'triangle'; o.frequency.value = f; g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0008, t0+dur); o.connect(g); g.connect(bus); o.start(t0); o.stop(t0+dur+0.02); }
 })();
@@ -3482,6 +3676,13 @@ function fadeTo(fn){
 
 /* -------- camera on the platform and at the window -------- */
 const RCAM = { yaw:0, pitch:0, pos:new THREE.Vector3(), look:new THREE.Vector3(), bob:0 };
+// the window side of the passenger coach (toward the village), from the coach's own heading
+function coachInner(){
+  const pc = TRAIN.passenger, p = pc.obj.position;
+  const n = new THREE.Vector3(-pc.fz, 0, pc.fx);
+  if(n.x*(-p.x) + n.z*(-p.z) < 0) n.negate();
+  return n;
+}
 function railCamera(dt, t){
   if(mode === 'platform'){
     const P = STATION.toWorld(-3, STATION.PT + 1.68, STATION.P0 + 2.7);
@@ -3498,16 +3699,15 @@ function railCamera(dt, t){
     RCAM.look.set(P.x + Math.sin(RCAM.yaw)*Math.cos(RCAM.pitch), P.y + Math.sin(RCAM.pitch), P.z + Math.cos(RCAM.yaw)*Math.cos(RCAM.pitch));
     camera.lookAt(RCAM.look);
   } else if(mode === 'train'){
-    const c = TRAIN.passenger.obj, sc = refS();
-    const IN = RAIL.inner(sc), p = c.position;
-    RCAM.bob += TS.v*dt*1.9;
-    const sway = Math.sin(RCAM.bob)*0.012*Math.min(1, TS.v/3), jig = Math.sin(RCAM.bob*2.3)*0.008*Math.min(1, TS.v/3);
-    camera.position.set(p.x + IN.x*0.35, p.y + 2.55 + jig, p.z + IN.z*0.35);
+    // a steady window seat: the view is locked to the coach body (no sway, no bob), only gently eased on curves
+    const pc = TRAIN.passenger, p = pc.obj.position, IN = coachInner();
     const wy = Math.atan2(IN.x, IN.z);
-    RCAM.yaw += wrapAngle(wy - RCAM.yaw) * (1 - Math.exp(-dt*6));
+    RCAM.yaw += wrapAngle(wy - RCAM.yaw) * (1 - Math.exp(-dt*3));
+    const sy = Math.sin(RCAM.yaw), cy = Math.cos(RCAM.yaw);
+    camera.position.set(p.x + sy*0.35, p.y + 2.55, p.z + cy*0.35);
     const wp = -Math.atan2(p.y + 2.5, 55) * 0.9 - 0.04;
-    RCAM.pitch += (wp - RCAM.pitch) * (1 - Math.exp(-dt*2));
-    RCAM.look.set(camera.position.x + Math.sin(RCAM.yaw + sway)*Math.cos(RCAM.pitch), camera.position.y + Math.sin(RCAM.pitch), camera.position.z + Math.cos(RCAM.yaw + sway)*Math.cos(RCAM.pitch));
+    RCAM.pitch += (wp - RCAM.pitch) * (1 - Math.exp(-dt*1.5));
+    RCAM.look.set(camera.position.x + sy*Math.cos(RCAM.pitch), camera.position.y + Math.sin(RCAM.pitch), camera.position.z + cy*Math.cos(RCAM.pitch));
     camera.lookAt(RCAM.look);
   }
 }
@@ -3982,9 +4182,9 @@ bikeGroup.position.set(bike.x, 0, bike.z); bikeGroup.rotation.y = bike.heading;
    WAR — outsiders attack the village 5 minutes after a visitor arrives
    ============================================================ */
 const WAR_TEST_NOW = false;         // developer switch: true starts a battle a few seconds after entering
-const WAR_DELAY_MS = 5*60*1000;     // the attack comes 5 minutes after the visitor arrives
+const WAR_DELAY_MS = 5*60*1000;     // the outsiders attack every 5 minutes while the visitor is here
 const WAR_ARRIVED = performance.now();
-const WAR = { state:'idle', firedDay:null, units:[], fx:0, fxTarget:0, player:null, kills:0, joined:false,
+const WAR = { state:'idle', firedDay:null, nextAt: WAR_ARRIVED + WAR_DELAY_MS, units:[], fx:0, fxTarget:0, player:null, kills:0, joined:false,
               introDone:false, reinforceT:0, reinforced:false, sparks:[], torches:[], hudT:0 };
 const INVADER_ANG = 42;
 const steelMat = new THREE.MeshStandardMaterial({ color:0xc9ccd2, metalness:0.75, roughness:0.3 });
@@ -4287,9 +4487,11 @@ function flyToBattle(){
 function startWar(){
   if(WAR.state !== 'idle') return;
   WAR.state = 'active'; WAR.firedDay = dayKey(); WAR.kills = 0; WAR.fxTarget = 1; WAR.joined = false;
+  // the next raid keeps the 5-minute rhythm, but never lands on the heels of this one
+  WAR.nextAt = Math.max(WAR.nextAt + WAR_DELAY_MS, performance.now() + 3*60*1000);
   WAR.reinforceT = 0; WAR.reinforced = false;
   if(panelOpen) deselect();
-  if(mode==='ride') setMode('orbit');
+  if(mode==='ride') setMode('orbit', { stay:true });
   agents.forEach(a=>{ if((!a.fixed && a.kind==='person') || a.group.parent===CAMPFIRE.group) a.group.visible = false; });
   // invaders gather beyond the north-east hills, then march
   const a = INVADER_ANG*D2R, ix = -Math.sin(a), iz = -Math.cos(a), sx = Math.cos(a), sz = -Math.sin(a);
@@ -4310,7 +4512,7 @@ function startWar(){
   showWarBanner('⚔️ Outsiders are attacking the village!');
   document.getElementById('warHud').classList.add('show');
   modeToggleBtn.textContent = '⚔️ Join the Battle';
-  flyToBattle();
+  // the camera stays where the visitor left it: only riding out to fight takes them to the battle
   setTimeout(()=>{ if(WAR.state==='active' && !WAR.joined) showWarDialog(); }, 1900);
 }
 function joinBattle(){
@@ -4346,11 +4548,12 @@ function cleanupWar(){
   agents.forEach(a=>{ if((!a.fixed && a.kind==='person') || a.group.parent===CAMPFIRE.group) a.group.visible = true; });
   document.getElementById('warHud').classList.remove('show');
   WAR.state = 'idle';
-  setMode('orbit');
+  // a visitor who only watched keeps their view; one who rode out is brought home
+  setMode('orbit', { stay: mode === 'orbit' });
 }
 function checkWarSchedule(){
   if(!WAR.introDone || WAR.state !== 'idle' || mode === 'platform' || mode === 'train' || TS.prompt) return;
-  if(WAR.firedDay === null && performance.now() - WAR_ARRIVED >= WAR_DELAY_MS) startWar();   // once per visit
+  if(performance.now() >= WAR.nextAt) startWar();   // every 5 minutes
 }
 
 /* -------- war UI -------- */
@@ -4573,8 +4776,18 @@ let dragging = false, dragMoved = false, lastX = 0, lastY = 0;
 const activePointers = new Map();
 let pinchStartDist = null, pinchStartRadius = null;
 function pinchDistance(){ const pts = [...activePointers.values()]; return pts.length<2 ? null : Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y); }
+// riding (bike or horse): drag to swing the chase camera, pinch or scroll to zoom; a tap on the horse swings the sword
+const chasePolar = base => Math.min(1.5, Math.max(0.5, base + CHASE.pitch));
+const chaseDrag = { id:null, x:0, y:0, moved:0 };
+function chaseMode(){ return (mode === 'ride' && !panelOpen) || mode === 'war'; }
 canvas.addEventListener('pointerdown', e=>{
-  if(mode==='war'){ playerAttack(); return; }
+  if(chaseMode()){
+    canvas.setPointerCapture(e.pointerId);
+    activePointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+    if(activePointers.size >= 2){ chaseDrag.id = null; pinchStartDist = pinchDistance(); pinchStartRadius = goal.radius; }
+    else { chaseDrag.id = e.pointerId; chaseDrag.x = e.clientX; chaseDrag.y = e.clientY; chaseDrag.moved = 0; }
+    return;
+  }
   if(mode==='platform' || mode==='train') return;
   if(mode!=='orbit') return;
   canvas.setPointerCapture(e.pointerId);
@@ -4583,6 +4796,16 @@ canvas.addEventListener('pointerdown', e=>{
   else { dragging = true; dragMoved = false; lastX = e.clientX; lastY = e.clientY; }
 });
 canvas.addEventListener('pointermove', e=>{
+  if(chaseMode()){
+    if(activePointers.has(e.pointerId)) activePointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+    if(activePointers.size >= 2){ const dist = pinchDistance(); if(dist && pinchStartDist) goal.radius = Math.min(28, Math.max(5, pinchStartRadius*pinchStartDist/dist)); return; }
+    if(chaseDrag.id !== e.pointerId) return;
+    const dx = e.clientX - chaseDrag.x, dy = e.clientY - chaseDrag.y;
+    chaseDrag.moved += Math.abs(dx) + Math.abs(dy); chaseDrag.x = e.clientX; chaseDrag.y = e.clientY;
+    CHASE.yaw = wrapAngle(CHASE.yaw - dx*0.0065);
+    CHASE.pitch = Math.min(0.24, Math.max(-0.75, CHASE.pitch - dy*0.0045));
+    hideHint(); return;
+  }
   if(mode!=='orbit') return;
   if(activePointers.has(e.pointerId)) activePointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
   if(activePointers.size >= 2){
@@ -4600,13 +4823,19 @@ canvas.addEventListener('pointermove', e=>{
 });
 function releasePointer(e){ activePointers.delete(e.pointerId); if(activePointers.size < 2){ pinchStartDist = null; pinchStartRadius = null; } }
 canvas.addEventListener('pointerup', e=>{
+  if(chaseMode() || chaseDrag.id === e.pointerId){
+    const tap = chaseDrag.id === e.pointerId && chaseDrag.moved < 8 && activePointers.size < 2;
+    releasePointer(e); if(chaseDrag.id === e.pointerId) chaseDrag.id = null;
+    if(tap && mode === 'war') playerAttack();
+    return;
+  }
   const wasDragging = dragging, wasPinching = activePointers.size >= 2;
   releasePointer(e);
   if(mode!=='orbit'){ dragging = false; return; }
   if(activePointers.size === 0) dragging = false;
   if(wasDragging && !wasPinching && !dragMoved) handleClick(e.clientX, e.clientY);
 });
-canvas.addEventListener('pointercancel', releasePointer);
+canvas.addEventListener('pointercancel', e=>{ releasePointer(e); if(chaseDrag.id === e.pointerId) chaseDrag.id = null; });
 canvas.addEventListener('wheel', e=>{
   e.preventDefault();
   if(mode==='ride' && panelOpen) return;
@@ -4673,10 +4902,13 @@ function updateBike(dt){
   if(turn !== 0){ const tf = bike.speed!==0 ? Math.sign(bike.speed) : 0.7; bike.heading += turn*BIKE_TURN_SPEED*dt*tf; }
   bike.x += Math.sin(bike.heading)*bike.speed*dt;
   bike.z += Math.cos(bike.heading)*bike.speed*dt;
-  const dc = Math.hypot(bike.x, bike.z);
-  if(dc > BIKE_LIMIT){ bike.x *= BIKE_LIMIT/dc; bike.z *= BIKE_LIMIT/dc; bike.speed *= 0.5; }
+  // no invisible fence: the bike goes wherever the ground does — the shore, the hills and the walls stop it
   const p = { x:bike.x, z:bike.z };
-  if(resolveCollisions(p, 0.5, false)){ bike.x = p.x; bike.z = p.z; bike.speed *= 0.9; }
+  let hit = resolveCollisions(p, 0.5, false);
+  if(trainPush(p, 0.5)) hit = true;
+  const dc = Math.hypot(p.x, p.z), lim = Math.min(WORLD_EDGE, SEA.coast(Math.atan2(p.x, p.z)/D2R) - 2.5);
+  if(dc > lim){ p.x *= lim/dc; p.z *= lim/dc; hit = true; }
+  if(hit){ bike.x = p.x; bike.z = p.z; bike.speed *= 0.9; }
   const y = groundHeight(bike.x, bike.z);
   bikeGroup.position.set(bike.x, y, bike.z);
   bikeGroup.rotation.y = bike.heading;
@@ -4777,11 +5009,14 @@ panelContent.addEventListener('click', e=>{
   const btn = e.target.closest('[data-nav]');
   if(btn) selectBuilding(btn.dataset.nav);
 });
+// chase camera: sits low behind the rider; dragging the screen swings it round and up/down
+const CHASE = { yaw:0, pitch:0 };
+const RIDE_POLAR = 1.27, WAR_POLAR = 1.16;
 function returnToChase(){
-  flight = null;
+  flight = null; CHASE.yaw = 0; CHASE.pitch = 0;
   const fwd = new THREE.Vector3(Math.sin(bike.heading), 0, Math.cos(bike.heading));
-  cam.target.copy(new THREE.Vector3(bike.x, 1.3, bike.z).add(fwd.multiplyScalar(1.6)));
-  cam.azimuth = bike.heading + Math.PI; cam.polar = 1.1; cam.radius = 11;
+  cam.target.copy(new THREE.Vector3(bike.x, 1.1, bike.z).add(fwd.multiplyScalar(1.4)));
+  cam.azimuth = bike.heading + Math.PI; cam.polar = RIDE_POLAR; cam.radius = 9;
   syncGoal();
 }
 function deselect(){
@@ -4800,7 +5035,8 @@ function showHint(text, ms){ hintEl.textContent = text; hintEl.classList.remove(
 hintTimer = setTimeout(hideHint, 8000);
 
 const modeToggleBtn = document.getElementById('modeToggle');
-function setMode(next){
+function setMode(next, opts){
+  const stay = !!(opts && opts.stay);
   mode = next;
   document.body.classList.toggle('war-mode', mode==='war');
   const rail = mode==='platform' || mode==='train';
@@ -4811,29 +5047,29 @@ function setMode(next){
   if(mode === 'ride'){
     modeToggleBtn.textContent = '🖱️ Free Look';
     joystickEl.style.opacity = '1'; joystickEl.style.pointerEvents = 'auto';
-    showHint('WASD / arrows to pedal · E to step inside · the dog will follow', 6000);
+    showHint('WASD / arrows to pedal · drag the screen to look around · E to step inside', 6500);
     returnToChase();
   } else if(mode === 'platform' || mode === 'train'){
     modeToggleBtn.textContent = mode === 'train' ? '🚪 Leave the train' : '🚪 Leave the station';
     joystickEl.style.opacity = '0'; joystickEl.style.pointerEvents = 'none'; joystickReset();
     enterPromptEl.classList.remove('show'); flight = null;
-    RCAM.yaw = mode === 'train' ? Math.atan2(RAIL.inner(refS()).x, RAIL.inner(refS()).z) : Math.atan2(-STATION.T.x, -STATION.T.z);
+    RCAM.yaw = mode === 'train' ? (()=>{ const n = coachInner(); return Math.atan2(n.x, n.z); })() : Math.atan2(-STATION.T.x, -STATION.T.z);
     RCAM.pitch = -0.05;
     if(TS.ticket) document.getElementById('ticketChipSeat').textContent = 'Carriage ' + TS.ticket.seat + ' · ' + TS.ticket.serial;
   } else if(mode === 'war'){
     modeToggleBtn.textContent = '🏳️ Leave the Battle';
     joystickEl.style.opacity = '1'; joystickEl.style.pointerEvents = 'auto';
     enterPromptEl.classList.remove('show');
-    showHint('WASD / arrows to ride · Space, click or ⚔️ to swing your sword', 7000);
+    showHint('WASD / arrows to ride · drag to look around · Space, tap or ⚔️ to swing your sword', 7000);
     returnToWarChase();
   } else {
     modeToggleBtn.textContent = WAR.state==='active' ? '⚔️ Join the Battle' : '🚲 Ride the Cycle';
     joystickEl.style.opacity = '0'; joystickEl.style.pointerEvents = 'none'; joystickReset();
     enterPromptEl.classList.remove('show');
-    if(WAR.state!=='active'){
+    if(WAR.state!=='active' && !stay){
       showHint('drag to look around · scroll to zoom · click a building to step inside', 5500);
       flyTo(HOME.target, cam.azimuth, HOME.polar, HOME.radius, 1000);
-    }
+    } else if(stay){ syncGoal(); goal.polar = Math.min(maxPolar, Math.max(minPolar, goal.polar)); goal.radius = Math.min(maxRadius, Math.max(minRadius, goal.radius)); }
   }
 }
 function returnToWarChase(){
@@ -4841,7 +5077,8 @@ function returnToWarChase(){
   flight = null;
   const p = pl.root.position, fwd = new THREE.Vector3(Math.sin(pl.heading), 0, Math.cos(pl.heading));
   cam.target.copy(new THREE.Vector3(p.x, 1.8, p.z).add(fwd.multiplyScalar(1.8)));
-  cam.azimuth = pl.heading + Math.PI; cam.polar = 1.12; cam.radius = 12;
+  CHASE.yaw = 0; CHASE.pitch = 0;
+  cam.azimuth = pl.heading + Math.PI; cam.polar = WAR_POLAR; cam.radius = 11;
   syncGoal();
 }
 modeToggleBtn.addEventListener('click', ()=>{
@@ -4876,13 +5113,22 @@ BUILDINGS.forEach(b=>{
 const mm = document.getElementById('minimap');
 const mmCtx = mm.getContext('2d');
 let mmCss = 150, mmDpr = 1;
-const MM_WORLD = 56;
+const MM_WORLD = 56, MM_BASE = 180;      // view radius in orbit mode; the drawn map reaches the shore and the hills
 const mmBase = document.createElement('canvas');
 function drawMinimapBase(){
-  const S = 512; mmBase.width = mmBase.height = S;
-  const c = mmBase.getContext('2d'), k = S/2/MM_WORLD;
+  const S = 1536; mmBase.width = mmBase.height = S;
+  const c = mmBase.getContext('2d'), k = S/2/MM_BASE;
   const W = (x,z)=> [S/2 + x*k, S/2 + z*k];
   c.fillStyle = '#3f6b52'; c.beginPath(); c.arc(S/2,S/2,S/2,0,Math.PI*2); c.fill();
+  // the sea beyond the shore, the mountains and hills around
+  c.fillStyle = '#2f6f96'; c.beginPath();
+  for(let i=0;i<=180;i++){ const deg = i*2, r = Math.min(SEA.coast(deg), MM_BASE+10), p = polar(deg, r); const [x,y] = W(p.x,p.z); i?c.lineTo(x,y):c.moveTo(x,y); }
+  for(let i=180;i>=0;i--){ const p = polar(i*2, MM_BASE+20); const [x,y] = W(p.x,p.z); c.lineTo(x,y); } c.fill();
+  c.fillStyle = '#d9cfa6'; c.strokeStyle = '#d9cfa6'; c.lineWidth = 3*k; c.beginPath();
+  for(let i=0;i<=180;i++){ const r = SEA.coast(i*2); if(r > MM_BASE) { c.stroke(); c.beginPath(); continue; } const p = polar(i*2, r - 1.5); const [x,y] = W(p.x,p.z); c.lineTo(x,y); } c.stroke();
+  c.fillStyle = '#4c5d55'; DISTANT_HILLS.forEach(h=>{ if(!h.parent) return; c.beginPath(); c.ellipse(...W(h.position.x, h.position.z), h.scale.x*0.95*k, h.scale.z*0.95*k, -h.rotation.y, 0, Math.PI*2); c.fill(); });
+  c.fillStyle = '#7d7466'; BIG_HILLS.forEach(b=>{ c.beginPath(); c.arc(...W(b.x,b.z), b.r*0.9*k, 0, Math.PI*2); c.fill(); });
+  c.fillStyle = '#8b8577'; [[338,98,36],[321,108,28],[356,110,30],[328,84,15],[349,85,14]].forEach(([deg,r,rad])=>{ const p = polar(deg,r); c.beginPath(); c.arc(...W(p.x,p.z), rad*0.9*k, 0, Math.PI*2); c.fill(); });
   c.strokeStyle = '#c9a876'; c.lineWidth = RING_W*k; c.beginPath(); c.arc(S/2,S/2,RING_R*k,0,Math.PI*2); c.stroke();
   c.lineWidth = 3.2*k;
   BUILDINGS.forEach(b=>{ if(b.isCenter || b.dist) return; const a = b.angle*D2R; c.beginPath(); c.moveTo(...W(Math.sin(a)*PLAZA_R, Math.cos(a)*PLAZA_R)); c.lineTo(...W(Math.sin(a)*R, Math.cos(a)*R)); c.stroke(); });
@@ -4895,9 +5141,12 @@ function drawMinimapBase(){
   c.fillStyle = '#3f8db0'; c.beginPath(); c.arc(...W(pondCenter.x,pondCenter.z), pondRadius*k, 0, Math.PI*2); c.fill();
   c.strokeStyle = '#8a6a44'; c.lineWidth = 2; c.beginPath(); c.arc(...W(PADDOCK.x,PADDOCK.z), PADDOCK.r*k, 0, Math.PI*2); c.stroke();
   c.save(); c.translate(...W(FIELDS.x,FIELDS.z)); c.rotate(-195*D2R); c.fillStyle = '#a58a4a'; c.fillRect(-7*k,-4.5*k,14*k,9*k); c.restore();
-  c.fillStyle = '#26402f'; treeData.forEach(t=>{ if(Math.hypot(t.x,t.z) < MM_WORLD){ c.beginPath(); c.arc(...W(t.x,t.z), 0.8*t.s*k, 0, Math.PI*2); c.fill(); } });
+  c.fillStyle = '#26402f'; treeData.forEach(t=>{ if(Math.hypot(t.x,t.z) < MM_BASE){ c.beginPath(); c.arc(...W(t.x,t.z), 0.8*t.s*k, 0, Math.PI*2); c.fill(); } });
   c.strokeStyle = '#2a2420'; c.lineWidth = 2.2*k; c.beginPath();
   for(let i=0;i<=RAIL.N;i+=6){ const p = RAIL.pts[Math.min(i,RAIL.N)]; const [x,y] = W(p.x,p.z); i?c.lineTo(x,y):c.moveTo(x,y); } c.closePath(); c.stroke();
+  c.strokeStyle = '#c9b48a'; c.lineWidth = 0.8*k; c.setLineDash([1.2*k, 1.2*k]); c.stroke(); c.setLineDash([]);
+  c.strokeStyle = '#2a2420'; c.lineWidth = 2.2*k; c.beginPath();
+  for(let i=0;i<=RAIL.spur.N;i+=6){ const p = RAIL.spur.pts[Math.min(i,RAIL.spur.N)]; const [x,y] = W(p.x,p.z); i?c.lineTo(x,y):c.moveTo(x,y); } c.stroke();
   c.strokeStyle = '#c9b48a'; c.lineWidth = 0.8*k; c.setLineDash([1.2*k, 1.2*k]); c.stroke(); c.setLineDash([]);
   { const a = STATION.toWorld(-15,0,STATION.P0+STATION.PW/2), b = STATION.toWorld(15,0,STATION.P0+STATION.PW/2); c.strokeStyle = '#d8cdb0'; c.lineWidth = STATION.PW*k; c.beginPath(); c.moveTo(...W(a.x,a.z)); c.lineTo(...W(b.x,b.z)); c.stroke(); }
   { const H = RAIL.HILL; c.save(); c.translate(...W(H.mid.x, H.mid.z)); c.rotate(-Math.atan2(H.dir.x, H.dir.z)); c.fillStyle = '#7d7466'; c.fillRect(-H.hw*k, -H.half*k, 2*H.hw*k, 2*H.half*k); c.restore(); }
@@ -4923,7 +5172,7 @@ function drawMinimap(){
   c.save(); c.beginPath(); c.arc(half,half,half-1,0,Math.PI*2); c.clip();
   c.fillStyle = '#2a3a2e'; c.fillRect(0,0,S,S);
   c.translate(half,half); c.rotate(rot); c.translate(-fx*k, -fz*k);
-  const bs = MM_WORLD*2*k; c.drawImage(mmBase, -bs/2, -bs/2, bs, bs);
+  const bs = MM_BASE*2*k; c.drawImage(mmBase, -bs/2, -bs/2, bs, bs);
   c.restore();
   c.save(); c.beginPath(); c.arc(half,half,half-1,0,Math.PI*2); c.clip();
   mmMarkers.length = 0;
@@ -5034,15 +5283,17 @@ function animate(){
     const fwd = new THREE.Vector3(Math.sin(pl.heading), 0, Math.cos(pl.heading));
     const desired = new THREE.Vector3(pp.x, 1.8+pp.y, pp.z).add(fwd.multiplyScalar(1.8));
     cam.target.lerp(desired, 1 - Math.pow(0.0008, dt));
-    cam.azimuth += wrapAngle(pl.heading + Math.PI - cam.azimuth) * (1 - Math.pow(0.02, dt));
+    cam.azimuth += wrapAngle(pl.heading + Math.PI + CHASE.yaw - cam.azimuth) * (1 - Math.pow(0.02, dt));
+    cam.polar += (chasePolar(WAR_POLAR) - cam.polar) * (1 - Math.pow(0.002, dt));
     cam.radius = Math.exp(Math.log(cam.radius) + (Math.log(goal.radius)-Math.log(cam.radius))*(1-Math.exp(-dt*10)));
     goal.azimuth = cam.azimuth; goal.polar = cam.polar;
   } else if(mode==='ride' && !panelOpen){
     updateBike(dt);
     const fwd = new THREE.Vector3(Math.sin(bike.heading), 0, Math.cos(bike.heading));
-    const desired = new THREE.Vector3(bike.x, 1.3+bikeGroup.position.y, bike.z).add(fwd.multiplyScalar(1.6));
+    const desired = new THREE.Vector3(bike.x, 1.1+bikeGroup.position.y, bike.z).add(fwd.multiplyScalar(1.4));
     cam.target.lerp(desired, 1 - Math.pow(0.0008, dt));
-    cam.azimuth += wrapAngle(bike.heading + Math.PI - cam.azimuth) * (1 - Math.pow(0.02, dt));
+    cam.azimuth += wrapAngle(bike.heading + Math.PI + CHASE.yaw - cam.azimuth) * (1 - Math.pow(0.02, dt));
+    cam.polar += (chasePolar(RIDE_POLAR) - cam.polar) * (1 - Math.pow(0.002, dt));
     cam.radius = Math.exp(Math.log(cam.radius) + (Math.log(goal.radius)-Math.log(cam.radius))*(1-Math.exp(-dt*10)));
     goal.azimuth = cam.azimuth; goal.polar = cam.polar;
   } else {
