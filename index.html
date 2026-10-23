@@ -3340,7 +3340,7 @@ const TRAIN = (()=>{
 })();
 
 /* -------- train state, schedule and travel -------- */
-const TRAIN_EVERY_MS = 2.5*60*1000;
+const TRAIN_EVERY_MS = 3*60*1000;
 const TS = {
   front: 0, v: 0, state:'cave', dwell: 0, stopReq: false, stopFor: null, nextStop: performance.now() + TRAIN_EVERY_MS, toCave: false,
   invited: false, aboard: false, onPlatform: false, departedDist: 0, distAcc: 0, chuffAcc: 0, clackAcc: 0,
@@ -4305,10 +4305,10 @@ const bike = { x:0, z:-17.5, heading:Math.PI/2, speed:0 };
 bikeGroup.position.set(bike.x, 0, bike.z); bikeGroup.rotation.y = bike.heading;
 
 /* ============================================================
-   WAR — outsiders attack the village 5 minutes after a visitor arrives
+   WAR — outsiders attack the village every 10 minutes while a visitor is here
    ============================================================ */
 const WAR_TEST_NOW = false;         // developer switch: true starts a battle a few seconds after entering
-const WAR_DELAY_MS = 5*60*1000;     // the outsiders attack every 5 minutes while the visitor is here
+const WAR_DELAY_MS = 10*60*1000;    // the outsiders attack every 10 minutes while the visitor is here
 const WAR_ARRIVED = performance.now();
 const WAR = { state:'idle', firedDay:null, nextAt: WAR_ARRIVED + WAR_DELAY_MS, units:[], fx:0, fxTarget:0, player:null, kills:0, joined:false,
               introDone:false, reinforceT:0, reinforced:false, sparks:[], torches:[], hudT:0 };
@@ -4613,7 +4613,7 @@ function flyToBattle(){
 function startWar(){
   if(WAR.state !== 'idle') return;
   WAR.state = 'active'; WAR.firedDay = dayKey(); WAR.kills = 0; WAR.fxTarget = 1; WAR.joined = false;
-  // the next raid keeps the 5-minute rhythm, but never lands on the heels of this one
+  // the next raid keeps the 10-minute rhythm, but never lands on the heels of this one
   WAR.nextAt = Math.max(WAR.nextAt + WAR_DELAY_MS, performance.now() + 3*60*1000);
   WAR.reinforceT = 0; WAR.reinforced = false;
   if(panelOpen) deselect();
@@ -4679,7 +4679,7 @@ function cleanupWar(){
 }
 function checkWarSchedule(){
   if(!WAR.introDone || WAR.state !== 'idle' || mode === 'platform' || mode === 'train' || TS.prompt) return;
-  if(performance.now() >= WAR.nextAt) startWar();   // every 5 minutes
+  if(performance.now() >= WAR.nextAt) startWar();   // every 10 minutes
 }
 
 /* -------- war UI -------- */
